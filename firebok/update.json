@@ -1,18 +1,18 @@
 {
-  "build": "202610231324",
+  "build": "202610231327",
   "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/FireBok-Setup.exe",
-  "sha256": "52a4726ee01195d1cd7074886251bec257f50a951779b7bb106902fd746e2d2c",
-  "sig": "MXOS/+QoVIrTEZzYzHyi85FiiQfp3W1LiJZUozqrNeFtiNJn/0JOZhYSpjE7VyIvixNqmh0uAk5XXlAZMr2bx+tJxxCzosvBKuYY7SiF4p4fzOQjzDHcIjIXscbbsEAFff9gQ2yP6jLjwy+5/49xOSkSZRUBtAbeOo5wy7U613L720DpXpemSSsZqxMX5XmnCZYovLnAHO+VNK5o/jodb1SAtNyY4XH17Qtwt1vyS555uDUV4xrT5xjOlXqVmhAO/CFMYGiCKeaeMe44xCakoBmzGkWDVucrnMchAPPX16/c25eyZLposIM8Ue+EpDuS3yaP9qXopoONKzL6OK+WVg==",
+  "sha256": "ab3615d225b493fe37720248c5b19ea50c50573ccb0335f5735ebcde055461c6",
+  "sig": "S1fx+v4oNx3TayzWVDKQMJa///uOS4k2Ll9vqeDEfwxa9XLssgmaeP8btF00BM/bBmrJ8hsJfGV/Q03/iTDWNAnKnoQqAy8IEnJpeoS2OJQEbt269aiJLHQo+jcnugjS7MFjHJHlaG0kIi4DJySU+4uJJJjB0LXQdI+rxgmxwYJXOpWMZOuMhUWn2P2z3UhzN47pBUoFYn1jSNMLphVKo356DGyIAfrqc7FnzNDc23yEt0T5Kg4ppZ39UYMajNyq3cQ9UNhiU/b2cZH3mBcDp7BQ9GZWnMB3gS4OpnhVixlymMSakMSYeZelFa4BHhVzf9qpYubtclGULYwI+MBU4Q==",
   "patches": [
-    {"from": "202610231320", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231320-to-202610231324.bin", "sha256": "50edb760bd21aaa3df0850ab6f0efa605d28bc8c482e608189132252dcf65884", "size": "262568"},
-    {"from": "202610231317", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231317-to-202610231324.bin", "sha256": "3cff4159a8dd15afc4bfebd1527ebfe334617799439678c251a60a1b583be32d", "size": "263046"},
-    {"from": "202610231314", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231314-to-202610231324.bin", "sha256": "6ec806f96a1e434db889244cee47c3ad217a586ef8516214a835c4a7045b5e43", "size": "261924"},
-    {"from": "202610231302", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231302-to-202610231324.bin", "sha256": "cbf505b69c2160d096a49d1f389d247d6783f4603a5ab37e7b046e46219920f3", "size": "272519"},
-    {"from": "202610231259", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231259-to-202610231324.bin", "sha256": "cf8d20cb3f6f335d42679e3e7fd78db1d6f0bbe2af1b76f421668c0f64e73500", "size": "272784"},
-    {"from": "202610231253", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231253-to-202610231324.bin", "sha256": "d3882e6dbded86a89163787c27c8eef31d329ad9ff3b58a7181c0e4d6f59ce80", "size": "273029"},
-    {"from": "202610231237", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231237-to-202610231324.bin", "sha256": "b9f258f2a8afa3704d90365ef0e046bb47bb61ca1352142f50cf3bc2f4d3ef65", "size": "297291"},
-    {"from": "202610231227", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231227-to-202610231324.bin", "sha256": "1794a59094a4d6aa45d73b129296a28a293d46415c24dd001f22ef423ced23b8", "size": "297369"},
-    {"from": "202610230936", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610230936-to-202610231324.bin", "sha256": "3ed1e957527ce9c647048e1513cae3a22abc18fcd68c2d2fb87991c958e485a4", "size": "297544"},
-    {"from": "202610230900", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610230900-to-202610231324.bin", "sha256": "a297ad3c62c3b46b859c11358c0fd866a2bb05151e850def687c519586517212", "size": "305125"}
+    {"from": "202610231324", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231324-to-202610231327.bin", "sha256": "5fb5473a1dee574b0ce7805c73a803892df7e0452713b37067bb4182432331b2", "size": "259410"},
+    {"from": "202610231320", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231320-to-202610231327.bin", "sha256": "b25ab69e9bcaeeb24ecb59ce77a316bd0c082533a59152d9788845008f356fca", "size": "259950"},
+    {"from": "202610231317", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231317-to-202610231327.bin", "sha256": "7c9c8d876350f7fe12bfbcd40a7465d76507f4c411a0269748944dfadcc91c02", "size": "261333"},
+    {"from": "202610231314", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231314-to-202610231327.bin", "sha256": "03cfd397a611189d7d44e62780b864f94526b6a69b269618b8c933178aef5c55", "size": "260650"},
+    {"from": "202610231302", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231302-to-202610231327.bin", "sha256": "ceb0d390fdb77664337ca1baaa5959afa2e95fe7f866ba23a4234002660c0c33", "size": "271198"},
+    {"from": "202610231259", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231259-to-202610231327.bin", "sha256": "afe5c132e7a84db1509d76085236fe758a721378b326017b6814a51d6c8ad702", "size": "271528"},
+    {"from": "202610231253", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231253-to-202610231327.bin", "sha256": "78362202ff5f09095ccea3880bace8cb1f20085c59d3d36bb97ddef55f4c46b8", "size": "270893"},
+    {"from": "202610231237", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231237-to-202610231327.bin", "sha256": "3c700b3685f5239940a0a8d103b5b6eaa67f5fd4f012e814ee9aa3c0a7f4dd67", "size": "295937"},
+    {"from": "202610231227", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610231227-to-202610231327.bin", "sha256": "9ad51f5d05b214db017735f7c8baa2c44b96a6772956721b2f2dc2586da0dd45", "size": "297206"},
+    {"from": "202610230936", "url": "https://github.com/saeidira-creator/bokernet-updates/releases/download/firebok/patch-202610230936-to-202610231327.bin", "sha256": "e2ec8456e4c889a3279099260d96bb4283d368a1732979786d36d633e5184fc5", "size": "296076"}
   ]
 }
