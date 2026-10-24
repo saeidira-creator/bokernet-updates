@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LogBok Console</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preload" href="vazirmatn.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css?v=36">
+</head>
+<body>
+<aside class="rail" id="rail">
+  <div class="brand"><div class="brandRow"><img src="logo.svg" alt="" width="34" height="38"><div class="nm">Log<span>Bok</span></div></div><div class="sub" id="brandSub"></div></div>
+  <nav class="navi" id="nav"></nav>
+  <div class="who" id="who"></div>
+</aside>
+<main class="main">
+  <div class="topbar">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="tools">
+      <span class="live" id="live"><span class="d"></span><span id="liveTxt"></span></span>
+      <div class="themeSw" id="themeSw"></div>
+    </div>
+  </div>
+  <div id="flash" class="flash" hidden></div>
+  <div id="view"></div>
+</main>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-modal="true" role="dialog"></aside>
+<script src="app.js?v=36"></script>
+</body>
+</html>
