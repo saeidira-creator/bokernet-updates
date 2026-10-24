@@ -283,11 +283,12 @@ try {
     if ((Test-Path (Join-Path $root 'Tools\privatekey.xml')) -and (Test-Path $pf) -and (Test-Path $flag)) {
         $busy = (Test-Path $lock) -and (((Get-Date) - (Get-Item $lock).LastWriteTime).TotalMinutes -lt 20)
         if (-not $busy) {
-            $pnotes = ''; try { $pnotes = ((Get-Content $flag -TotalCount 1 -ErrorAction SilentlyContinue) | Out-String).Trim() } catch {}
+            $pnotes = ''; try { $pnotes = ((Get-Content $flag -Raw -ErrorAction SilentlyContinue) | Out-String).Trim() } catch {}
             Remove-Item $flag -Force -ErrorAction SilentlyContinue
             Set-Content -Path $lock -Value (Get-Date -Format s) -ErrorAction SilentlyContinue
+            # pass the notes via a file (never via args - spaces would corrupt the version)
+            try { Set-Content -Path (Join-Path $root 'dist\publish-notes.txt') -Value $pnotes -Encoding UTF8 -ErrorAction SilentlyContinue } catch {}
             $pa = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$pf)
-            if ($pnotes) { $pa += @('-Notes', $pnotes) }
             Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $pa -WindowStyle Hidden
         }
     }
