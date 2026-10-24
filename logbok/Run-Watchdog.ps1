@@ -255,16 +255,24 @@ try {
     }
 } catch {}
 
-# 10) lightweight self-update (every N hours, with jitter)
+# 10) updates
 try {
     if ($cfg -and $cfg.Update -and $cfg.Update.Enabled -ne $false) {
+        Import-Module (Join-Path $root 'LogBok.Update.psm1') -Force
+        $isVendor = Test-Path (Join-Path $root 'Tools\privatekey.xml')
+        $fast = $false; try { $fast = ($cfg.Update.DevFastPull -eq $true) } catch {}
+        # client servers pull the vendor's SIGNED package from the internet feed
+        # (update.bokernet.ir). DevFastPull = check EVERY watchdog tick (~2 min) so new
+        # builds arrive within ~2 min while developing; if the version has not changed it
+        # just compares and returns (no downloads). The vendor itself never pulls.
+        if ($cfg.Update.ServerFeed -and -not $isVendor -and $fast) {
+            try { Invoke-LBServerUpdate -InstallDir $root -Config $cfg | Out-Null } catch {}
+        }
+        # slower cadence: agent self-update (LAN) and, when not in fast mode, the feed pull
         $iv = if ($cfg.Update.IntervalHours) { [int]$cfg.Update.IntervalHours } else { 6 }
         if (Test-Due 'update' $iv) {
             Start-Sleep -Seconds (Get-Random -Minimum 0 -Maximum 20)
-            Import-Module (Join-Path $root 'LogBok.Update.psm1') -Force
-            # client servers: pull the vendor's SIGNED package from the internet feed
-            # (update.bokernet.ir); the vendor server itself publishes, so it never pulls
-            if ($cfg.Update.ServerFeed -and -not (Test-Path (Join-Path $root 'Tools\privatekey.xml'))) {
+            if ($cfg.Update.ServerFeed -and -not $isVendor -and -not $fast) {
                 try { Invoke-LBServerUpdate -InstallDir $root -Config $cfg | Out-Null } catch {}
             }
             Invoke-LogBokSelfUpdate -InstallDir $root -Config $cfg | Out-Null
