@@ -112,19 +112,37 @@ function Get-LBFeedToFile {
     param([string]$Feed, [string]$Rel, [string]$OutFile)
     try {
         if ($Feed -match '^https?://') {
-            $url = ($Feed.TrimEnd('/')) + '/' + ($Rel -replace '\\', '/')
-            try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
-            Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 120 -OutFile $OutFile -ErrorAction Stop
-            return (Test-Path -LiteralPath $OutFile)
+            $rel2 = ($Rel -replace '\\', '/')
+            $urls = @(($Feed.TrimEnd('/')) + '/' + $rel2)
+            # mirror of the official feed (the same signed files on GitHub) for networks
+            # that can't reach update.bokernet.ir
+            if ($Feed -match '^https?://update\.bokernet\.ir/(\w+)') { $urls += ('https://raw.githubusercontent.com/saeidira-creator/bokernet-updates/main/' + $Matches[1] + '/' + $rel2) }
+            try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+            foreach ($u in $urls) {
+                # second try tolerates an outdated root-certificate store (old servers):
+                # safe, because every file is checked against the vendor's RSA-signed manifest
+                foreach ($lax in @($false, $true)) {
+                    $old = [Net.ServicePointManager]::ServerCertificateValidationCallback
+                    try {
+                        if ($lax) { [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } }
+                        $wc = New-Object Net.WebClient
+                        $wc.DownloadFile($u + '?t=' + [DateTime]::UtcNow.Ticks, $OutFile)
+                        if ((Test-Path -LiteralPath $OutFile) -and (Get-Item -LiteralPath $OutFile).Length -gt 0) { $script:LBFeedError = ''; return $true }
+                    }
+                    catch { $script:LBFeedError = $u + ' : ' + $_.Exception.Message }
+                    finally { [Net.ServicePointManager]::ServerCertificateValidationCallback = $old }
+                }
+            }
+            return $false
         }
         else {
             $p = Join-Path $Feed ($Rel -replace '/', '\')
-            if (-not (Test-Path -LiteralPath $p)) { return $false }
+            if (-not (Test-Path -LiteralPath $p)) { $script:LBFeedError = 'not found: ' + $p; return $false }
             Copy-Item -LiteralPath $p -Destination $OutFile -Force -ErrorAction Stop
             return $true
         }
     }
-    catch { return $false }
+    catch { $script:LBFeedError = $_.Exception.Message; return $false }
 }
 
 # پس از اعمال، بستهٔ «فقط کد» را در dist محلی آینه کن تا ایجنت‌های همین سرور آپدیت شوند
@@ -156,13 +174,17 @@ function Invoke-LBServerUpdate {
     $work = Join-Path $sd 'update-work'
     if (-not (Test-Path $work)) { New-Item -ItemType Directory -Path $work -Force | Out-Null }
     $mfFile = Join-Path $work 'server.json'; $sgFile = Join-Path $work 'server.sig'
-    if (-not (Get-LBFeedToFile -Feed $feed -Rel 'server.json' -OutFile $mfFile)) { return $null }
+    if (-not (Get-LBFeedToFile -Feed $feed -Rel 'server.json' -OutFile $mfFile)) {
+        try { Set-Content -Path (Join-Path $sd 'update-status.txt') -Value ((Get-Date -Format 's') + ' feed unreachable: ' + $script:LBFeedError) -Encoding UTF8 } catch { }
+        return $null
+    }
     if (-not (Get-LBFeedToFile -Feed $feed -Rel 'server.sig' -OutFile $sgFile)) { return $null }
 
     # مسیرِ کم‌هزینه: مقایسهٔ نسخه قبل از تأییدِ امضا
     $verFile = Join-Path $sd 'server-version.txt'
     $localVer = if (Test-Path $verFile) { (Get-Content $verFile -Raw).Trim() } else { '' }
     $peek = $null; try { $peek = Get-Content $mfFile -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return $null }
+    try { Set-Content -Path (Join-Path $sd 'update-status.txt') -Value ((Get-Date -Format 's') + ' feed ok, latest v' + [string]$peek.Version + ', installed v' + $localVer) -Encoding UTF8 } catch { }
     if ([string]$peek.Version -eq $localVer) { return $null }
 
     # تأییدِ امضا با کلیدِ عمومیِ سازنده (هیچ آپدیتِ بدونِ امضای معتبر اعمال نمی‌شود)
