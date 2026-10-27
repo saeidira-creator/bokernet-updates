@@ -115,6 +115,25 @@ function New-LBJobTrigger {
     }
 }
 
+# An always-on job (Web/Syslog/AgentIn/Guard) whose task is not Running but whose script is
+# still alive (left over after its task was rebuilt, or started outside the task) keeps the
+# port and keeps serving OLD code; the task then fails every start with 'port in use'.
+# Stop such leftover LogBok processes so the task can start cleanly with the current code.
+function Stop-LBOrphanJob {
+    param($Job)
+    $n = 0
+    try {
+        $me = $PID
+        foreach ($p in @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction Stop)) {
+            if ($p.ProcessId -eq $me) { continue }
+            $cl = [string]$p.CommandLine
+            if ($cl -and $cl -like ('*' + $Job.Script + '*')) { try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop; $n++ } catch { } }
+        }
+    } catch { }
+    if ($n) { Start-Sleep -Seconds 2 }
+    return $n
+}
+
 function Register-LBJob {
     param($Job, [string]$InstallDir, [pscredential]$RunAs, [switch]$Start)
     $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -149,6 +168,7 @@ function Register-LBJob {
     }
     if ($Job.Name -eq 'Syslog') { Open-LBSyslogPort -Config $script:__cfg }
     # only recurring/always-on jobs run immediately (not the daily/weekly reports that send email)
+    if ($Job.Kind -eq 'Startup') { [void](Stop-LBOrphanJob -Job $Job) }
     if (($Start -and $Job.Kind -in 'Repeat','Event') -or $Job.Kind -eq 'Startup') {
         try { Start-ScheduledTask -TaskName $Job.Task -TaskPath $script:TaskPath -ErrorAction SilentlyContinue } catch {}
     }
@@ -216,9 +236,10 @@ function Sync-LBJobs {
                 try { Enable-ScheduledTask -TaskName $j.Task -TaskPath $script:TaskPath -ErrorAction Stop | Out-Null
                       [void]$changes.Add([pscustomobject]@{ Job=$j.Name; Action='Re-enabled'; Ok=$true; Message='' }) } catch {}
             } elseif ($j.Kind -eq 'Startup' -and $t.State -ne 'Running') {
-                # an always-on job (Syslog) must always be running
+                # an always-on job (Syslog) must always be running; clear a leftover instance first
+                $killed = Stop-LBOrphanJob -Job $j
                 try { Start-ScheduledTask -TaskName $j.Task -TaskPath $script:TaskPath -ErrorAction SilentlyContinue
-                      [void]$changes.Add([pscustomobject]@{ Job=$j.Name; Action='Started'; Ok=$true; Message='' }) } catch {}
+                      [void]$changes.Add([pscustomobject]@{ Job=$j.Name; Action='Started'; Ok=$true; Message=$(if ($killed) { "stopped $killed leftover process(es)" } else { '' }) }) } catch {}
             }
         } elseif ($t) {
             try {
