@@ -560,6 +560,25 @@ function Send-LogBokMail {
     } catch {
         $em = $_.Exception.Message
         if ($_.Exception.InnerException -and $em -notlike ('*' + $_.Exception.InnerException.Message + '*')) { $em += ' — ' + $_.Exception.InnerException.Message }
+        # the submission port (587/25) is often blocked on the way out while 465 (implicit TLS)
+        # is open, or the reverse: on a connection failure try the other common port once
+        if ($em -match 'Unable to connect|could not connect|timed out|actively refused|connection attempt failed') {
+            $alt = if ([int]$m.Port -eq 465) { 587 } else { 465 }
+            try {
+                if ($alt -eq 465) {
+                    [void](Send-LBSmtpImplicitTls -Server ([string]$m.SmtpServer) -Port 465 -From ([string]$m.From) -To @($params.To) -Subject $subj -Body $Body -Html:$Html -Attachments $Attachments -Credential $params.Credential)
+                } else {
+                    $p2 = $params.Clone(); $p2.Port = 587; $p2.UseSsl = $true
+                    Send-MailMessage @p2 -ErrorAction Stop
+                }
+                Write-LogBokLog -Message ("ایمیل از پورتِ جایگزینِ {0} ارسال شد (پورتِ {1} در دسترس نبود): {2} | mail sent via fallback port {0} (port {1} unreachable)" -f $alt, $m.Port, $subj) -Level WARN -Config $Config
+                return $true
+            } catch {
+                $em2 = $_.Exception.Message; if ($_.Exception.InnerException) { $em2 += ' — ' + $_.Exception.InnerException.Message }
+                $em += (' | fallback port {0}: {1}' -f $alt, $em2)
+            }
+            try { $ips = @([Net.Dns]::GetHostAddresses([string]$m.SmtpServer) | ForEach-Object { $_.IPAddressToString }) -join ', '; $em += ' | ' + [string]$m.SmtpServer + ' = ' + $ips } catch { $em += ' | DNS: ' + $_.Exception.Message }
+        }
         $script:LBLastMailError = $em
         Write-LogBokLog -Message "خطا در ارسال ایمیل '$subj' : $em" -Level ERROR -Config $Config
         return $false
