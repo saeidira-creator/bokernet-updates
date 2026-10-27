@@ -24,7 +24,7 @@ function New-LBDiagReport {
     function Add([string]$s) { [void]$sb.AppendLine($s) }
     $sd = Join-Path $Root 'state'
     if ($StateDir) { $sd = $StateDir } else { try { $sd = Get-LBStateDir -Config $Config -Root $Root } catch { } }
-    $ver = ''; try { $ver = (Get-Content (Join-Path $sd 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { }
+    $ver = ''; foreach ($vn in 'server-version.txt', 'version.txt') { if (-not $ver) { try { $ver = (Get-Content (Join-Path $sd $vn) -Raw -ErrorAction Stop).Trim() } catch { } } }
     $cust = ''; $exp = ''
     try { $lk = Get-Content (Join-Path $Root 'license.key') -Raw -ErrorAction Stop
           $m = [regex]::Match($lk, '(?m)^Company\s*[:=]\s*(.+)$'); if ($m.Success) { $cust = $m.Groups[1].Value.Trim() }
