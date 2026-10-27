@@ -33,6 +33,8 @@ function New-LBDiagReport {
     Add ('LogBok diagnostics report')
     Add ('client: ' + (Get-LBDiagClientId))
     Add ('computer: ' + $env:COMPUTERNAME)
+    $dom = ''; try { $dom = [string](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).Domain } catch { }
+    Add ('domain: ' + $dom)
     Add ('customer: ' + $cust + '  expires: ' + $exp)
     Add ('version: ' + $ver)
     Add ('time: ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'))
