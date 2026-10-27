@@ -147,6 +147,8 @@ function Publish-LBAgentMirror {
 function Invoke-LBServerUpdate {
     param([string]$InstallDir, $Config)
     $feed = ''; try { $feed = [string]$Config.Update.ServerFeed } catch { }
+    # engine server installed from an older setup (no feed set): use the official BokerNet feed
+    if (-not $feed -and (Test-Path (Join-Path $InstallDir 'engine.flag')) -and -not (Test-Path (Join-Path $InstallDir 'Tools\privatekey.xml'))) { $feed = 'https://update.bokernet.ir/logbok' }
     if (-not $feed) { return $null }
     if ($Config.Update -and $Config.Update.Enabled -eq $false) { return $null }
 
