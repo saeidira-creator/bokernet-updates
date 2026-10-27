@@ -288,7 +288,31 @@ try {
     $pf = Join-Path $root 'owner\publish-github.ps1'
     $flag = Join-Path $root 'dist\run-publish.flag'
     $lock = Join-Path $root 'dist\publishing.lock'
-    if ((Test-Path (Join-Path $root 'Tools\privatekey.xml')) -and (Test-Path $pf) -and (Test-Path $flag)) {
+    # The GitHub token is DPAPI-encrypted for the owner's Windows account, so publishing must run
+    # as that user, never as SYSTEM. The per-user helper task (owner\auto-publish.ps1) picks up the
+    # flag itself; the watchdog only makes sure that task exists and is running.
+    $apTask = $null
+    $aps = Join-Path $root 'owner\auto-publish.ps1'
+    if ((Test-Path $flag) -and (Test-Path $aps) -and (Test-Path (Join-Path $root 'Tools\privatekey.xml'))) {
+        try { $apTask = Get-ScheduledTask -TaskName 'LogBok AutoPublish' -ErrorAction Stop } catch { $apTask = $null }
+        if (-not $apTask) {
+            try {
+                $u = [string](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).UserName
+                if ($u) {
+                    $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $aps)
+                    $trg = New-ScheduledTaskTrigger -AtLogOn -User $u
+                    $pri = New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Highest
+                    $set = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
+                    $apTask = Register-ScheduledTask -TaskName 'LogBok AutoPublish' -Action $act -Trigger $trg -Principal $pri -Settings $set -Force -ErrorAction Stop
+                }
+            } catch { $apTask = $null }
+        }
+        if ($apTask) {
+            try { if ([string](Get-ScheduledTask -TaskName 'LogBok AutoPublish').State -ne 'Running') { Start-ScheduledTask -TaskName 'LogBok AutoPublish' -ErrorAction Stop } } catch {}
+        }
+    }
+    if ($apTask -or [Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) { }   # SYSTEM cannot decrypt the token - leave the flag for the helper
+    elseif ((Test-Path (Join-Path $root 'Tools\privatekey.xml')) -and (Test-Path $pf) -and (Test-Path $flag)) {
         $busy = (Test-Path $lock) -and (((Get-Date) - (Get-Item $lock).LastWriteTime).TotalMinutes -lt 20)
         if (-not $busy) {
             $pnotes = ''; try { $pnotes = ((Get-Content $flag -Raw -ErrorAction SilentlyContinue) | Out-String).Trim() } catch {}
