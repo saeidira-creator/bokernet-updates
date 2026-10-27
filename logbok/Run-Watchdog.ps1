@@ -383,6 +383,20 @@ try {
     }
 } catch {}
 
+# 15) development-period diagnostics (LogBok.Diag.psm1)
+#     client LogBok servers send an encrypted health report every 15 min;
+#     the vendor computer collects them into Diagnostics\ every 5 min.
+try {
+    if ($fullEngine -and (Test-Path (Join-Path $root 'LogBok.Diag.psm1'))) {
+        Import-Module (Join-Path $root 'LogBok.Diag.psm1') -Force -DisableNameChecking
+        if (Test-Path (Join-Path $root 'Tools\privatekey.xml')) {
+            if (Test-Due 'diagpull' 0.08) { Receive-LBDiagnostics -Root $root | Out-Null; Set-Done 'diagpull' }
+        } else {
+            Send-LBDiagnostics -Root $root -Config $cfg -StateDir $stateDir
+        }
+    }
+} catch {}
+
 Save-LBDedupe
 
 # this cycle's resource cost, reported to the console
