@@ -21,6 +21,13 @@ $script:Root = Split-Path -Parent $PSCommandPath
 $script:Token = $null
 $script:TestMode = $false
 $script:Version = '1.9.7'
+# the version shown in the console = the real build: the feed version this server last
+# applied (state\server-version.txt), or on the vendor the last published version
+function Get-LBDisplayVersion {
+    try { $f = Join-Path $script:Root 'state\server-version.txt'; if (Test-Path $f) { $v = (Get-Content $f -Raw).Trim(); if ($v) { return $v } } } catch { }
+    try { $f = Join-Path $script:Root 'dist\published.json'; if (Test-Path $f) { $j = Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json; $j = @($j | ForEach-Object { $_ }); if ($j.Count -eq 1 -and $j[0].history) { $j = @($j[0].history) }; $v = ''; if ($j.Count) { $v = [string]$j[0].version }; if ($v) { return $v } } } catch { }
+    return $script:Version
+}
 
 function Import-LBWebModules {
     foreach ($m in 'LogBok.Core','LogBok.Lang','LogBok.License','LogBok.Findings','LogBok.Alerts','LogBok.Targets','LogBok.Connect','LogBok.Archive','LogBok.Mitre','LogBok.Guard','LogBok.Jobs','LogBok.Risk','LogBok.AgentPkg','LogBok.AgentIn','LogBok.AgentDeploy','LogBok.Endpoint','LogBok.Archive','LogBok.Reports','LogBok.Backup','LogBok.Playbook','LogBok.Sessions','LogBok.WebAuth','LogBok.Publish','LogBok.Update','LogBok.Remote') {
@@ -543,7 +550,7 @@ function Invoke-LBWebApi {
         $role = 'admin'; try { $s = Get-LBWebUser -StateDir $sd -Name $User; if ($s) { $role = [string]$s.role } } catch { }
         $isVendor = $false; try { $isVendor = Test-LBIsVendor $script:Root } catch { }
         $loginOn = $false; try { $loginOn = [bool](Get-LBAuthConfig $cfg).Enabled } catch { }
-        return [ordered]@{ user=$User; role=$role; authed=$true; loginOn=$loginOn; isVendor=$isVendor; lang=$lang; host=$env:COMPUTERNAME; version=$script:Version; token=$script:Token; mode=[string]$cfg.CollectionMode
+        return [ordered]@{ user=$User; role=$role; authed=$true; loginOn=$loginOn; isVendor=$isVendor; lang=$lang; host=$env:COMPUTERNAME; version=(Get-LBDisplayVersion); token=$script:Token; mode=[string]$cfg.CollectionMode
                            categories=$cats; brand=$(if ($cfg.Brand) { [string]$cfg.Brand.NameEn } else { 'LogBok' }); serverIps=@(Get-LBServerIPs); agentVersion=$(try { Get-LBAgentVersion } catch { '' }) }
     }
     '/api/ad/dashboard' {
@@ -1814,7 +1821,7 @@ function Invoke-LBWebApi {
         return [ordered]@{
             isVendor         = [bool]$st.isVendor
             canIssue         = ([bool]$st.isVendor -and (Test-Path (Join-Path $script:Root 'Tools\LogBok.Issuer.psm1')))
-            installedVersion = $script:Version
+            installedVersion = (Get-LBDisplayVersion)
             serverVersion    = $serverVer
             publishedVersion = [string]$st.publishedVersion; publishedAt = [string]$st.publishedAt
             feed             = $(if ($up.ServerFeed) { [string]$up.ServerFeed } else { '' })
