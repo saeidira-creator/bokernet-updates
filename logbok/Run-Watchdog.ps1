@@ -260,19 +260,22 @@ try {
     if ($cfg -and $cfg.Update -and $cfg.Update.Enabled -ne $false) {
         Import-Module (Join-Path $root 'LogBok.Update.psm1') -Force
         $isVendor = Test-Path (Join-Path $root 'Tools\privatekey.xml')
-        $fast = $false; try { $fast = ($cfg.Update.DevFastPull -eq $true) } catch {}
+        # an engine server with no feed set (installed from an older setup) still pulls
+        # from the official BokerNet feed; development period: fast pull unless turned off
+        if ($fullEngine -and -not $isVendor -and -not $cfg.Update.ServerFeed) { try { $cfg.Update['ServerFeed'] = 'https://update.bokernet.ir/logbok' } catch {} }
+        $fast = $true; try { if ($cfg.Update.DevFastPull -eq $false) { $fast = $false } } catch {}
         # client servers pull the vendor's SIGNED package from the internet feed
         # (update.bokernet.ir). DevFastPull = check EVERY watchdog tick (~2 min) so new
         # builds arrive within ~2 min while developing; if the version has not changed it
         # just compares and returns (no downloads). The vendor itself never pulls.
-        if ($cfg.Update.ServerFeed -and -not $isVendor -and $fast) {
+        if (($cfg.Update.ServerFeed -or $fullEngine) -and -not $isVendor -and $fast) {
             try { Invoke-LBServerUpdate -InstallDir $root -Config $cfg | Out-Null } catch {}
         }
         # slower cadence: agent self-update (LAN) and, when not in fast mode, the feed pull
         $iv = if ($cfg.Update.IntervalHours) { [int]$cfg.Update.IntervalHours } else { 6 }
         if (Test-Due 'update' $iv) {
             Start-Sleep -Seconds (Get-Random -Minimum 0 -Maximum 20)
-            if ($cfg.Update.ServerFeed -and -not $isVendor -and -not $fast) {
+            if (($cfg.Update.ServerFeed -or $fullEngine) -and -not $isVendor -and -not $fast) {
                 try { Invoke-LBServerUpdate -InstallDir $root -Config $cfg | Out-Null } catch {}
             }
             Invoke-LogBokSelfUpdate -InstallDir $root -Config $cfg | Out-Null
