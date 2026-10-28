@@ -100,6 +100,19 @@ function Resolve-LBADGroup {
     return [pscustomobject]@{ Dn = [string]($r.Properties['distinguishedname'] | Select-Object -First 1); Sid = $sid; Sam = [string]($r.Properties['samaccountname'] | Select-Object -First 1) }
 }
 
+# a computer account (NAME, NAME$ or name.domain) -> DN + SID, for per-computer GPO filtering
+function Resolve-LBADComputer {
+    param($Ctx, [Parameter(Mandatory)][string]$Name)
+    $root = Get-LBADObject -Ctx $Ctx -Dn $Ctx.DomainDN
+    $v = (($Name.Trim() -replace '^.*\\', '') -split '\.')[0] -replace '\$$', '' -replace '[()*\\]', ''
+    $ds = New-Object DirectoryServices.DirectorySearcher($root, "(&(objectCategory=computer)(|(sAMAccountName=$v`$)(name=$v)))")
+    [void]$ds.PropertiesToLoad.Add('distinguishedname'); [void]$ds.PropertiesToLoad.Add('objectsid'); [void]$ds.PropertiesToLoad.Add('samaccountname')
+    $r = $ds.FindOne()
+    if (-not $r) { throw "کامپیوتر در اکتیودایرکتوری پیدا نشد | computer not found in AD: $Name" }
+    $sid = New-Object Security.Principal.SecurityIdentifier(([byte[]]($r.Properties['objectsid'] | Select-Object -First 1)), 0)
+    return [pscustomobject]@{ Dn = [string]($r.Properties['distinguishedname'] | Select-Object -First 1); Sid = $sid; Sam = [string]($r.Properties['samaccountname'] | Select-Object -First 1) }
+}
+
 # --- سیاست‌های استقرار | deployment policies (state\agent-policies.json) -------------------
 function Get-LBAgentPolicyFile { param([string]$StateDir) Join-Path $StateDir 'agent-policies.json' }
 function Get-LBAgentPolicies {
@@ -123,7 +136,7 @@ function Set-LBAgentPolicy {
     if (-not ([string]$Policy.Name).Trim()) { throw 'نامِ سیاست لازم است | policy name required' }
     if ([string]$Policy.Method -notin 'push','gpo','both') { $Policy.Method = 'gpo' }
     if ([string]$Policy.Type -notin 'All','Servers','Workstations','DCs') { $Policy.Type = 'All' }
-    foreach ($k in 'OUs','IncludeGroups','ExcludeGroups') { $Policy[$k] = @(@($Policy[$k]) | Where-Object { $_ } | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ }) }
+    foreach ($k in 'OUs','IncludeGroups','ExcludeGroups','Computers') { $Policy[$k] = @(@($Policy[$k]) | Where-Object { $_ } | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ }) }
     if ($Policy.DomainId) {
         $dc0 = Get-LBADDomainConn -StateDir $StateDir -Id ([string]$Policy.DomainId)
         $Policy.Server = $dc0.Server; $Policy.CredName = $dc0.CredName; $Policy.Domain = [string]$dc0.Domain.Fqdn
@@ -177,6 +190,8 @@ function Get-LBAgentPolicyTargets {
     }
     # خودِ سرورِ لاگ‌بوک هرگز ایجنت نمی‌گیرد | never the LogBok server itself
     $me = $env:COMPUTERNAME
+    $only = @($Policy.Computers | Where-Object { $_ } | ForEach-Object { ((([string]$_).Trim() -replace '^.*\\', '') -split '\.')[0] -replace '\$$', '' })
+    if ($only.Count) { $out = @($out | Where-Object { $only -contains [string]$_.Name }) }
     return @($out | Where-Object { $_.Name -ne $me } | Sort-Object Name)
 }
 
@@ -341,6 +356,8 @@ function Publish-LBAgentGpo {
     $read = [DirectoryServices.ActiveDirectoryRights]'ReadProperty, ListChildren, ListObject, GenericRead'
     $inc = @(); foreach ($g in @($Policy.IncludeGroups)) { $inc += Resolve-LBADGroup -Ctx $ctx -Group $g }
     $exc = @(); foreach ($g in @($Policy.ExcludeGroups)) { $exc += Resolve-LBADGroup -Ctx $ctx -Group $g }
+    # selected computers: the GPO applies only to these computer accounts
+    foreach ($cn in @($Policy.Computers | Where-Object { $_ })) { $inc += Resolve-LBADComputer -Ctx $ctx -Name ([string]$cn) }
     # بازنشانیِ قواعدِ قبلیِ همین گروه‌ها | reset our managed identities
     $sec.PurgeAccessRules($au)
     foreach ($x in @($inc + $exc)) { $sec.PurgeAccessRules($x.Sid) }
