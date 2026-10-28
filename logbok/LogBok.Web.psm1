@@ -1337,7 +1337,27 @@ function Invoke-LBWebApi {
     }
     '/api/agent/rebuild' { [void](Update-LBAgentPackages -InstallDir $script:Root -Config $cfg -Force); return @{ ok = $true } }
     '/api/agent/batch' {
-        Assert-LBRemotePush -StateDir $sd
+        if (-not (Test-LBRemotePushAllowed -StateDir $sd)) {
+            # remote push is off (secure default): in a domain, install the chosen computers through a
+            # Group Policy filtered to exactly those computer accounts - no inbound port on the clients
+            $did = [string]$body.domainId
+            if (-not $did) { $dl = @(Get-LBADDomains -StateDir $sd); if ($dl.Count -eq 1) { $did = [string]$dl[0].Id } }
+            $dom = $null; if ($did) { $dom = Get-LBADDomain -StateDir $sd -Id $did }
+            if (-not $dom) { Assert-LBRemotePush -StateDir $sd }
+            $names = @($body.computers | Where-Object { $_ -and $_.name } | ForEach-Object { [string]$_.name } | Where-Object { $_ -ne $env:COMPUTERNAME })
+            if (-not $names.Count) { throw 'هیچ سیستمی انتخاب نشده | no computers selected' }
+            $ex = @(Get-LBAgentPolicies -StateDir $sd | Where-Object { [string]$_.DomainId -eq $did -and [string]$_.Name -like 'LogBok*Selected computers*' }) | Select-Object -First 1
+            $have = @(); if ($ex) { $have = @(Get-LBArr $ex.Computers) }
+            $list = @(@($have + $names) | Where-Object { $_ } | Sort-Object -Unique)
+            $h = @{ Name = ('LogBok — Selected computers ({0})' -f [string]$dom.Fqdn); Enabled = $true; Method = 'gpo'; Auto = $false; Type = 'All'; OUs = @(); IncludeGroups = @(); ExcludeGroups = @(); Computers = $list; NameLike = ''; IncludeDisabled = $false; Collector = ([string]$body.collector).Trim(); Parallel = 6; Reinstall = $false; DomainId = $did }
+            if ($ex) { $h.Id = [string]$ex.Id }
+            $p = Set-LBAgentPolicy -StateDir $sd -Policy $h
+            $g = Publish-LBAgentGpo -Policy $p -InstallDir $script:Root -StateDir $sd
+            try { [void](Import-LBADComputers -Computers @($names | ForEach-Object { [pscustomobject]@{ Name = $_; Address = ''; IsDC = $false; Os = '' } }) -InstallDir $script:Root -By $User) } catch { }
+            Write-LBWebAudit -User $User -Message ("secure install (GPO) for {0} computer(s) in {1}: {2}" -f $names.Count, $dom.Fqdn, ($names -join ', '))
+            $msg = ('{0} سیستم با Group Policy امن نصب می‌شوند (بدونِ باز کردنِ پورت)؛ در ری‌استارت یا به‌روزرسانیِ بعدیِ Group Policy (حداکثر حدودِ ۹۰ دقیقه) ایجنت نصب و وصل می‌شود. | {0} computer(s) will be installed securely via Group Policy (no open port); the agent installs and connects at the next restart or Group Policy refresh (up to ~90 min).' -f $names.Count)
+            return [ordered]@{ ok = $true; queued = $names.Count; method = 'gpo'; message = $msg; gpo = [ordered]@{ guid = $g.Guid; name = $g.Name } }
+        }
         $comps = @($body.computers | Where-Object { $_ -and $_.name } | ForEach-Object { [pscustomobject]@{ Name=[string]$_.name; Address=[string]$_.address; IsDC=[bool]$_.isDC; Os=[string]$_.os } })
         if (-not $comps.Count) { throw 'هیچ سیستمی انتخاب نشده | no computers selected' }
         $ad = Resolve-LBWebAd -Body $body -StateDir $sd
