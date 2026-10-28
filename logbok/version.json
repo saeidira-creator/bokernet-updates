@@ -1,7 +1,7 @@
 {
-    "Version":  "2026.10.28.2135",
-    "Published":  "2026-10-28T21:35:55",
-    "Notes":  "Add",
+    "Version":  "2026.10.28.2220",
+    "Published":  "2026-10-28T22:20:39",
+    "Notes":  "Console:",
     "Files":  {
                   "compliance-templates.psd1":  "F842AA89856CA5427D4D6D34702C04475BF5DF1D0A0CFB3B13E8F9B422062D79",
                   "LogBok.ADReports.psm1":  "B5D9D1630A1BB41672834FAD0303CB6664CBAB80F6ABFF5DA1B3FE7325737E4C",
