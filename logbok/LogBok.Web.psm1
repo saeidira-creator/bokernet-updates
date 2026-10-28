@@ -20,7 +20,7 @@ $script:Inv = [Globalization.CultureInfo]::InvariantCulture
 $script:Root = Split-Path -Parent $PSCommandPath
 $script:Token = $null
 $script:TestMode = $false
-$script:Version = '1.9.7'
+$script:Version = '2.1'
 # the version shown in the console = the real build: the feed version this server last
 # applied (state\server-version.txt), or on the vendor the last published version
 function Get-LBDisplayVersion {
@@ -485,6 +485,20 @@ function Get-LBBodyCred {
     return $null
 }
 # دامنهٔ ذخیره‌شده (domainId) یا ورودیِ دستی | a saved domain (domainId) or the typed server/user/password
+# GPO publish with a clear message when the saved domain account lacks the rights
+function Invoke-LBWebGpoPublish {
+    param($Policy, $Domain, [string]$StateDir)
+    try { return (Publish-LBAgentGpo -Policy $Policy -InstallDir $script:Root -StateDir $StateDir) }
+    catch {
+        $em = [string]$_.Exception.Message; if ($_.Exception.InnerException) { $em += ' ' + $_.Exception.InnerException.Message }
+        if ($em -match 'Access is denied|E_ACCESSDENIED|0x80070005|insufficient access|INSUFF_ACCESS') {
+            $fq = ''; $us = ''; if ($Domain) { $fq = [string]$Domain.Fqdn; $us = [string]$Domain.User }
+            throw ("حسابِ ذخیره‌شده برای دامنهٔ {0} ({1}) اجازهٔ ساختن و لینک کردنِ Group Policy را ندارد. در بخشِ «دامنه‌های اکتیودایرکتوری» همین دامنه را ویرایش کنید و یک حسابِ عضوِ Domain Admins وارد کنید. | The account saved for domain {0} ({1}) is not allowed to create and link a Group Policy. Edit this domain under Active Directory domains and enter an account that is a member of Domain Admins." -f $fq, $us)
+        }
+        throw
+    }
+}
+
 function Resolve-LBWebAd {
     param($Body, [string]$StateDir)
     if ($Body -and $Body.domainId) {
@@ -1352,7 +1366,7 @@ function Invoke-LBWebApi {
             $h = @{ Name = ('LogBok — Selected computers ({0})' -f [string]$dom.Fqdn); Enabled = $true; Method = 'gpo'; Auto = $false; Type = 'All'; OUs = @(); IncludeGroups = @(); ExcludeGroups = @(); Computers = $list; NameLike = ''; IncludeDisabled = $false; Collector = ([string]$body.collector).Trim(); Parallel = 6; Reinstall = $false; DomainId = $did }
             if ($ex) { $h.Id = [string]$ex.Id }
             $p = Set-LBAgentPolicy -StateDir $sd -Policy $h
-            $g = Publish-LBAgentGpo -Policy $p -InstallDir $script:Root -StateDir $sd
+            $g = Invoke-LBWebGpoPublish -Policy $p -Domain $dom -StateDir $sd
             try { [void](Import-LBADComputers -Computers @($names | ForEach-Object { [pscustomobject]@{ Name = $_; Address = ''; IsDC = $false; Os = '' } }) -InstallDir $script:Root -By $User) } catch { }
             Write-LBWebAudit -User $User -Message ("secure install (GPO) for {0} computer(s) in {1}: {2}" -f $names.Count, $dom.Fqdn, ($names -join ', '))
             $msg = ('{0} سیستم با Group Policy امن نصب می‌شوند (بدونِ باز کردنِ پورت)؛ در ری‌استارت یا به‌روزرسانیِ بعدیِ Group Policy (حداکثر حدودِ ۹۰ دقیقه) ایجنت نصب و وصل می‌شود. | {0} computer(s) will be installed securely via Group Policy (no open port); the agent installs and connects at the next restart or Group Policy refresh (up to ~90 min).' -f $names.Count)
@@ -1398,7 +1412,7 @@ function Invoke-LBWebApi {
         $h = @{ Name = ('LogBok — All computers ({0})' -f [string]$d.Fqdn); Enabled = $true; Method = 'gpo'; Auto = $true; Type = 'All'; OUs = @(Get-LBArr $body.ous); IncludeGroups = @(); ExcludeGroups = @(Get-LBArr $body.excludeGroups); NameLike = ''; IncludeDisabled = $false; Collector = ([string]$body.collector).Trim(); Parallel = 6; Reinstall = $false; DomainId = [string]$d.Id }
         if ($ex) { $h.Id = [string]$ex.Id }
         $p = Set-LBAgentPolicy -StateDir $sd -Policy $h
-        $g = Publish-LBAgentGpo -Policy $p -InstallDir $script:Root -StateDir $sd
+        $g = Invoke-LBWebGpoPublish -Policy $p -Domain $d -StateDir $sd
         Write-LBWebAudit -User $User -Message "secure domain rollout (GPO) for $($d.Fqdn): $($g.Name)"
         return [ordered]@{ ok = $true; id = [string]$p.Id; gpo = [ordered]@{ guid = $g.Guid; name = $g.Name; links = @($g.Links); version = $g.Version } }
     }
