@@ -17,6 +17,9 @@ $script:AllowedPrefixes = @('LogBok-','FireBok-')
 
 # rule groups that Windows/Microsoft components create by themselves (never a person)
 $script:MicrosoftRuleGroups = @('DiagTrack','Microsoft Edge','Microsoft Edge WebView2 Runtime','Windows Feature Experience Pack','Microsoft Edge Update')
+# the same built-in rules by their display name: on some Windows builds (e.g. Server 2022) they
+# carry no Group / Owner, so the group check alone misses them
+$script:MicrosoftRuleNames = @('Connected User Experiences and Telemetry','Microsoft Edge (mDNS-In)','Microsoft Edge*','Windows Feature Experience Pack','Microsoft Edge WebView2*')
 
 function Write-LBFwEvent {
     param([string]$Message,[string]$Level='Warning',[int]$Id=9013)
@@ -65,6 +68,7 @@ function Get-LBUnknownFwRules {
         #  - the telemetry service (DiagTrack) and Microsoft Edge / WebView2 (mDNS, etc.)
         try { if ([string]$r.Owner) { $isBuiltIn = $true } } catch {}
         try { if ($script:MicrosoftRuleGroups -contains [string]$r.Group) { $isBuiltIn = $true } } catch {}
+        foreach ($mn in $script:MicrosoftRuleNames) { if ($name -like $mn) { $isBuiltIn = $true; break } }
         if ($fromGpo -or $isBuiltIn) { continue }
         # details of what the rule actually opens: protocol / port / program
         $proto = ''; $lport = ''; $prog = ''
