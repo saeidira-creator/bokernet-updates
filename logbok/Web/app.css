@@ -490,3 +490,4 @@ thead th{letter-spacing:.2px}
 [dir="rtl"] .kpi::before{left:auto;right:0}
 [dir="rtl"] .tile .dot{right:auto;left:12px}
 [dir="rtl"] .drawer{right:auto;left:0}
+.tw[style*="max-height"] thead th{position:sticky;top:0;z-index:1;background:var(--surface)}
