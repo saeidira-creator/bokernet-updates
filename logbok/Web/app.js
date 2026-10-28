@@ -2276,7 +2276,7 @@
         res.appendChild(el('div', { cls: 'acts', style: 'margin-top:10px' }, el('span', { cls: 'muted', text: t('agCollector') }), col, btn(t('adInstallSel'), function (ev) {
           var sel = boxes.filter(function (bx) { return bx.c.checked; }).map(function (bx) { return bx.x; });
           if (!sel.length) return; var bb = ev.target; bb.disabled = true;
-          api('/api/agent/batch', { domainId: d.id, computers: sel, collector: col.value }).then(function (y) { flash(t('agQueued') + ' (' + y.queued + ')'); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
+          api('/api/agent/batch', { domainId: d.id, computers: sel, collector: col.value }).then(function (y) { flash(y.message ? loc(y.message) : (t('agQueued') + ' (' + y.queued + ')')); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
         }, 'pri sm'), btn(t('dpRemoteOnly'), function (ev) {
           var sel = boxes.filter(function (bx) { return bx.c.checked; }).map(function (bx) { return bx.x; });
           if (!sel.length) return; var bb = ev.target; bb.disabled = true;
@@ -2374,7 +2374,7 @@
         res.appendChild(el('div', { cls: 'acts', style: 'margin-top:10px' }, el('span', { cls: 'muted', text: t('agCollector') }), col, btn(t('adInstallSel'), function (ev) {
           var sel = boxes.filter(function (bx) { return bx.c.checked; }).map(function (bx) { return bx.x; });
           if (!sel.length) return; var bb = ev.target; bb.disabled = true;
-          api('/api/wg/install', { id: g.id, computers: sel, collector: col.value }).then(function (y) { flash(t('agQueued') + ' (' + y.queued + ')'); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
+          api('/api/wg/install', { id: g.id, computers: sel, collector: col.value }).then(function (y) { flash(y.message ? loc(y.message) : (t('agQueued') + ' (' + y.queued + ')')); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
         }, 'pri sm')));
         res.appendChild(el('div', { cls: 'muted', style: 'margin-top:6px', text: t('wgInstallHint') }));
       }
@@ -2464,7 +2464,7 @@
           out.appendChild(el('div', { cls: 'acts', style: 'margin-top:8px' }, btn(t('adInstallSel'), function (ev) {
             var sel = boxes.filter(function (bx) { return bx.c.checked; }).map(function (bx) { return bx.x; });
             if (!sel.length) return; var bb = ev.target; bb.disabled = true;
-            api('/api/agent/batch', adBody({ computers: sel, collector: col.value })).then(function (y) { flash(t('agQueued') + ' (' + y.queued + ')'); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
+            api('/api/agent/batch', adBody({ computers: sel, collector: col.value })).then(function (y) { flash(y.message ? loc(y.message) : (t('agQueued') + ' (' + y.queued + ')')); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
           }, 'pri sm')));
         }).catch(function (er) { b.disabled = false; clear(out); fail(er); });
       }
