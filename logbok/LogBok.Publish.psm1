@@ -57,7 +57,15 @@ function Invoke-LBPublishUpdate {
     )
     $key = Get-LBPublishKeyPath $InstallDir
     if (-not (Test-Path $key)) { throw 'این سرور، سرورِ سازنده نیست (privatekey.xml نیست) — انتشار فقط از سرورِ سازنده ممکن است | not a vendor server (no privatekey.xml)' }
-    if (-not $Version) { $Version = (Get-Date).ToString('yyyy.MM.dd.HHmm', [Globalization.CultureInfo]::InvariantCulture) }
+    # automatic version = product series + build number (2.1.1, 2.1.2, ...), not a date/time stamp.
+    # clients only compare for equality, so the format change is safe.
+    if (-not $Version) {
+        $bnFile = Join-Path $InstallDir 'dist\build-number.txt'
+        $bn = 0; try { if (Test-Path $bnFile) { $bn = [int]((Get-Content $bnFile -Raw).Trim()) } } catch { $bn = 0 }
+        $bn++
+        $Version = '2.1.' + $bn
+        try { if (-not (Test-Path (Split-Path $bnFile -Parent))) { New-Item -ItemType Directory -Path (Split-Path $bnFile -Parent) -Force | Out-Null }; Set-Content -Path $bnFile -Value $bn -Encoding ASCII } catch { }
+    }
     if ($Version -notmatch '^[0-9A-Za-z._\-]{1,40}$') { throw 'شمارهٔ نسخه نامعتبر | invalid version string' }
 
     $dist = Join-Path $InstallDir 'dist'
