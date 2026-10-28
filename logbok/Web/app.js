@@ -2271,9 +2271,8 @@
         if (!rows.length) rows = [emptyRow(7)];
         var withAg = data.filter(function (c) { return c.agent === 'ok'; }).length;
         res.appendChild(el('div', { cls: 'muted', style: 'margin:10px 0 6px', text: data.length + ' ' + t('results') + ' · ' + withAg + ' ' + t('agInstalled') + ' · ' + (data.length - withAg) + ' ' + t('adNoAgent') }));
-        res.appendChild(el('div', { cls: 'tw' }, el('table', null, el('thead', null, el('tr', null, el('th', null, allc), el('th', { text: t('name') }), el('th', { text: 'DNS' }), el('th', { text: t('os') }), el('th', { text: 'OU' }), el('th', { text: t('lastLogon') }), el('th', { text: t('agents') }))), el('tbody', null, rows))));
         var col = colSelect(r);
-        res.appendChild(el('div', { cls: 'acts', style: 'margin-top:10px' }, el('span', { cls: 'muted', text: t('agCollector') }), col, btn(t('adInstallSel'), function (ev) {
+        res.appendChild(el('div', { cls: 'acts', style: 'margin:4px 0 10px' }, el('span', { cls: 'muted', text: t('agCollector') }), col, btn(t('adInstallSel'), function (ev) {
           var sel = boxes.filter(function (bx) { return bx.c.checked; }).map(function (bx) { return bx.x; });
           if (!sel.length) return; var bb = ev.target; bb.disabled = true;
           api('/api/agent/batch', { domainId: d.id, computers: sel, collector: col.value }).then(function (y) { flash(y.message ? loc(y.message) : (t('agQueued') + ' (' + y.queued + ')')); closeDrawer(); agTab = 'status'; vAgents(); }).catch(function (er) { bb.disabled = false; fail(er); });
@@ -2282,6 +2281,7 @@
           if (!sel.length) return; var bb = ev.target; bb.disabled = true;
           api('/api/ad/import', { domainId: d.id, computers: sel }).then(function (y) { flash(t('imported') + ': ' + y.imported); closeDrawer(); go('computers'); api('/api/sources/test', {}).catch(function () { }); }).catch(function (er) { bb.disabled = false; fail(er); });
         }, 'sm')));
+        res.appendChild(el('div', { cls: 'tw', style: 'max-height:52vh;overflow:auto' }, el('table', null, el('thead', null, el('tr', null, el('th', null, allc), el('th', { text: t('name') }), el('th', { text: 'DNS' }), el('th', { text: t('os') }), el('th', { text: 'OU' }), el('th', { text: t('lastLogon') }), el('th', { text: t('agents') }))), el('tbody', null, rows))));
         res.appendChild(el('div', { cls: 'muted', style: 'margin-top:6px', text: t('adPushHint') }));
       }
       function load(e) {
