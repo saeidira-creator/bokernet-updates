@@ -687,6 +687,11 @@ function Get-LogBokEvents {
         $p.ComputerName = $ComputerName
         # stored credential for this host (or the default)
         try { $cr = Get-LBTargetCredential -Computer $ComputerName -StateDir (Get-LBStateDir -Config $Config); if ($cr) { $p.Credential = $cr } } catch { }
+        # a host that just failed with "RPC server is unavailable" is not asked again in this run (each try waits ~20 s;
+        # a new unreachable target used to block one Realtime run for 15 min until the next connectivity test)
+        if (-not $script:LBDeadHosts) { $script:LBDeadHosts = @{} }
+        $dk = $ComputerName.ToLower()
+        if ($script:LBDeadHosts.ContainsKey($dk) -and $script:LBDeadHosts[$dk] -gt (Get-Date).AddMinutes(-10)) { return @() }
     }
     try {
         return @(Get-WinEvent @p)
@@ -695,6 +700,10 @@ function Get-LogBokEvents {
         if ($_.FullyQualifiedErrorId -like 'NoMatchingEventsFound*' -or $_.Exception.Message -match 'No events were found|هیچ رویدادی') { return @() }
         # a harmless Windows error rendering the event text (message template not installed); it repeated every cycle and filled the log
         if ($_.Exception.Message -match 'message text for message number|message file for|find message text') { return @() }
+        if ($p.ComputerName -and ($_.Exception.Message -match 'RPC server is unavailable|0x800706BA' -or $_.Exception.HResult -eq -2147023174)) {
+            if (-not $script:LBDeadHosts) { $script:LBDeadHosts = @{} }
+            $script:LBDeadHosts[$ComputerName.ToLower()] = Get-Date
+        }
         Write-LogBokLog -Message "خطای خواندن لاگ '$LogName' روی '$ComputerName' : $($_.Exception.Message)" -Level WARN -Config $Config
         return @()
     }
