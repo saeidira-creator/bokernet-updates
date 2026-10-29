@@ -772,11 +772,13 @@ function Invoke-DetectMemberServer {
         # NOTE: the attack-indicator patterns below are assembled from fragments at runtime so that a
         # host antivirus does not false-positive this detector FILE itself as "malicious content".
         # The resulting regex value is identical; detection behaviour is unchanged.
+        # Each fragment pair MUST be in parentheses: ',' binds tighter than '+', so 'A' + 'B', 'C' would split
+        # into separate patterns ('B', 'C') and flag nearly every script (bug in v2.1.2: hits like 'Mi', 'String').
         $suspPs = (@(
-            'EncodedCommand', 'FromBase64' + 'String', 'Download' + 'String', 'Download' + 'File',
-            'Invoke-' + 'Expression', '\bIEX\b', 'Net\.Web' + 'Client', 'Reflection\.Assembly\]::Load',
-            'Virtual' + 'Alloc', 'Mi' + 'mikatz', 'sek' + 'urlsa', 'Invoke-Shell' + 'code',
-            'Amsi' + 'Utils', 'amsi' + 'InitFailed'
+            'EncodedCommand', ('FromBase64' + 'String'), ('Download' + 'String'), ('Download' + 'File'),
+            ('Invoke-' + 'Expression'), '\bIEX\b', ('Net\.Web' + 'Client'), 'Reflection\.Assembly\]::Load',
+            ('Virtual' + 'Alloc'), ('Mi' + 'mikatz'), ('sek' + 'urlsa'), ('Invoke-Shell' + 'code'),
+            ('Amsi' + 'Utils'), ('amsi' + 'InitFailed')
         ) -join '|')
         $ownDir = Split-Path -Parent $PSCommandPath
         foreach ($e in (Get-LogBokEvents -LogName $psLog -Id 4104 -StartTime $Start -ComputerName $s.Computer -Config $Config)) {
@@ -790,7 +792,7 @@ function Invoke-DetectMemberServer {
             # نصب‌کنندهٔ تأییدشدهٔ خودِ لاگ‌بوک: هشدارِ بحرانی نه، فقط ثبتِ سطحِ پایین | LogBok's own verified installer: low-severity note, not Critical
             $wc = 'Net\.Web' + 'Client'; $dd = 'Download' + 'Data'; $ix = 'i' + 'ex'   # fragments: avoid AV false-positive on this file
             $lbLine = "^\`$b=\(New-Object $wc\)\.$dd\('http://[A-Za-z0-9_.\-]+:\d+/install\.ps1\?t=[0-9a-f]{16,96}'\);if\(\[BitConverter\]::ToString\(\[Security\.Cryptography\.SHA256\]::Create\(\)\.ComputeHash\(\`$b\)\)\.Replace\('-',''\) -eq '[0-9A-F]{64}'\)\{$ix \(\[Text\.Encoding\]::UTF8\.GetString\(\`$b\)\)\}else\{Write-Host '[^']*' -ForegroundColor Red\}\s*$"
-            $suspBoot = (@('EncodedCommand', 'FromBase64' + 'String', 'Download' + 'String', 'Invoke-' + 'Expression', '\bIEX\b', 'Reflection', 'Virtual' + 'Alloc', 'Mi' + 'mikatz', 'sek' + 'urlsa', 'Shell' + 'code', 'Amsi') -join '|')
+            $suspBoot = (@('EncodedCommand', ('FromBase64' + 'String'), ('Download' + 'String'), ('Invoke-' + 'Expression'), '\bIEX\b', 'Reflection', ('Virtual' + 'Alloc'), ('Mi' + 'mikatz'), ('sek' + 'urlsa'), ('Shell' + 'code'), 'Amsi') -join '|')
             $lbBoot = ($msg -match '^# LogBok agent - one-line installer \(verified\)') -and ($msg -notmatch $suspBoot)
             if ($msg -match $lbLine -or $lbBoot) {
 
@@ -801,7 +803,7 @@ function Invoke-DetectMemberServer {
                 continue
             }
             if ($msg -match $suspPs) {
-                $hit = ([regex]::Matches($msg,$suspPs) | ForEach-Object { $_.Value } | Select-Object -Unique) -join ', '
+                $hit = ([regex]::Matches($msg,$suspPs,'IgnoreCase') | ForEach-Object { $_.Value } | Select-Object -Unique) -join ', '
                 $snippet = ($msg -split "`r?`n" | Select-Object -First 3) -join ' '
                 if ($snippet.Length -gt 300) { $snippet = $snippet.Substring(0,300) }
                 $f += New-Finding -Category 'MemberServer' -Severity 'Critical' -Machine $e.MachineName -Time $e.TimeCreated `
