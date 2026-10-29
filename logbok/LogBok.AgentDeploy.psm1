@@ -288,6 +288,17 @@ function Get-LBGpoStartupPath { param($Ctx, [string]$Guid) return "\\$($Ctx.Fqdn
 
 function Write-LBUnicodeFile { param([string]$Path, [string]$Text) [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UnicodeEncoding($false, $true))) }
 
+# AD write with a clear message when the account lacks rights | خطای «Access is denied» با توضیحِ مرحله
+function Invoke-LBGpoCommit {
+    param($Obj, [string]$Step)
+    try { $Obj.CommitChanges() } catch {
+        $e = $_.Exception; $ie = $e.InnerException
+        $denied = ($ie -is [UnauthorizedAccessException]) -or ($e.HResult -eq -2147024891) -or ($ie -and $ie.HResult -eq -2147024891) -or ("$($e.Message) $(if ($ie) { $ie.Message })" -match '(?i)access is denied|0x80070005')
+        if (-not $denied) { throw }
+        throw ("حسابِ واردشده اجازهٔ این کار را در اکتیودایرکتوری ندارد ({0})؛ از حسابی در Domain Admins استفاده کنید یا اجازهٔ ساخت/ویرایشِ GPO و لینک روی OU را بدهید | Access is denied in Active Directory while trying to {0}: use a Domain Admins account, or delegate GPO create/edit (Group Policy Creator Owners) and 'Link GPOs' on the target OUs" -f $Step)
+    }
+}
+
 # ساخت/به‌روزرسانیِ GPO | create or update the deployment GPO for a policy
 function Publish-LBAgentGpo {
     param([Parameter(Mandatory)]$Policy, [Parameter(Mandatory)][string]$InstallDir, [Parameter(Mandatory)][string]$StateDir, [pscredential]$Credential)
@@ -310,8 +321,8 @@ function Publish-LBAgentGpo {
         $gpc.Properties['gPCFileSysPath'].Value = "\\$($ctx.Fqdn)\SysVol\$($ctx.Fqdn)\Policies\$guid"
         $gpc.Properties['flags'].Value = 1          # بخشِ User غیرفعال | user configuration disabled
         $gpc.Properties['versionNumber'].Value = 0
-        $gpc.CommitChanges()
-        foreach ($cn in 'Machine','User') { $ch = $gpc.psbase.Children.Add("CN=$cn", 'container'); $ch.CommitChanges() }
+        Invoke-LBGpoCommit -Obj $gpc -Step 'create the GPO in CN=Policies'
+        foreach ($cn in 'Machine','User') { $ch = $gpc.psbase.Children.Add("CN=$cn", 'container'); Invoke-LBGpoCommit -Obj $ch -Step 'create the GPO in CN=Policies' }
         $created = $true
     }
     # فایل‌ها در SYSVOL | files in SYSVOL (same DC as LDAP)
@@ -344,7 +355,7 @@ function Publish-LBAgentGpo {
         $gpc.Properties['versionNumber'].Value = $ver
         $gpc.Properties['gPCMachineExtensionNames'].Value = $script:GpoCses
         $gpc.Properties['displayName'].Value = $name
-        $gpc.CommitChanges()
+        Invoke-LBGpoCommit -Obj $gpc -Step 'update the GPO version'
         [IO.File]::WriteAllText((Join-Path $gfs 'GPT.INI'), ("[General]`r`nVersion={0}`r`ndisplayName={1}`r`n" -f $ver, $name), [Text.Encoding]::ASCII)
     } finally { Remove-PSDrive -Name $drive -Force -ErrorAction SilentlyContinue }
 
@@ -372,7 +383,7 @@ function Publish-LBAgentGpo {
         $sec.AddAccessRule((New-Object DirectoryServices.ActiveDirectoryAccessRule($au, 'ExtendedRight', 'Allow', $script:ApplyGpRight)))
     }
     foreach ($x in $exc) { $sec.AddAccessRule((New-Object DirectoryServices.ActiveDirectoryAccessRule($x.Sid, 'ExtendedRight', 'Deny', $script:ApplyGpRight))) }
-    $gpc.CommitChanges()
+    Invoke-LBGpoCommit -Obj $gpc -Step 'set GPO security filtering'
 
     # لینک به OUها (یا ریشهٔ دامنه) | link to the OUs (or the domain root)
     $targets = @($Policy.OUs | Where-Object { $_ }); if (-not $targets.Count) { $targets = @($ctx.DomainDN) }
@@ -381,7 +392,7 @@ function Publish-LBAgentGpo {
     foreach ($t in $targets) {
         $o = Get-LBADObject -Ctx $ctx -Dn $t
         $cur = [string]$o.Properties['gPLink'].Value
-        if ($cur -notmatch [regex]::Escape("cn=$guid,")) { $o.Properties['gPLink'].Value = ($cur + $linkStr); $o.CommitChanges() }
+        if ($cur -notmatch [regex]::Escape("cn=$guid,")) { $o.Properties['gPLink'].Value = ($cur + $linkStr); Invoke-LBGpoCommit -Obj $o -Step ('link the GPO to ' + $t) }
     }
     $info = @{ Guid = $guid; Name = $name; Domain = $ctx.Fqdn; DC = $ctx.DC; Links = $targets; Stamp = $stamp; Include = @($inc | ForEach-Object { $_.Sid.Value }); Exclude = @($exc | ForEach-Object { $_.Sid.Value })
                Published = (Get-Date).ToString('o', $script:Inv); Version = $ver; Script = $ps }
