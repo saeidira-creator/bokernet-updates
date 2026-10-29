@@ -64,7 +64,7 @@ function New-LBDiagReport {
         $seen = @{}; $rows = New-Object Collections.ArrayList
         foreach ($f in $files) {
             foreach ($l in (Get-Content $f.FullName -Encoding UTF8 -ErrorAction SilentlyContinue)) {
-                if ($l -notmatch '\[(WARN|ERROR)\]' -and $l -notmatch '(?i)exception|failed|cannot|could not|error') { continue }
+                if ($l -notmatch '\[(WARN|ERROR)\]' -and ($l -replace '(?i)\b0 (failed|errors?)\b', '') -notmatch '(?i)exception|failed|cannot|could not|error') { continue }
                 $key = ($l -replace '^\S+ \S+ ', '') -replace '\d+', '#'
                 if ($seen.ContainsKey($key)) { $seen[$key]++; continue }
                 $seen[$key] = 1; [void]$rows.Add(@($key, $l))
