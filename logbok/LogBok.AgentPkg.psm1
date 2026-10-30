@@ -11,7 +11,7 @@
 #  همه‌چیز سازوکارِ مستندِ سیستم‌عامل است؛ بدونِ پنهان‌سازی، قابلِ حذفِ کامل.
 # ==========================================================================
 $script:Inv = [Globalization.CultureInfo]::InvariantCulture
-$script:AgentVersion = '1.7.6'
+$script:AgentVersion = '1.7.7'
 function Get-LBAgentVersion { return [string]$script:AgentVersion }
 
 # فایل‌هایی که ایجنتِ ویندوز لازم دارد (همان فهرستِ LogBok.Deploy) | agent payload
