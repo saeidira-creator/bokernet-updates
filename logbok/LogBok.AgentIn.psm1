@@ -355,6 +355,8 @@ function Start-LBAgentInServer {
     $l = New-Object Net.HttpListener
     $l.Prefixes.Add("http://+:$Port/")
     $l.AuthenticationSchemes = [Net.AuthenticationSchemes]::Anonymous
+    # a client that connects and then stalls must never freeze the (single-threaded) intake
+    try { $tm = $l.TimeoutManager; $tm.EntityBody = [TimeSpan]::FromSeconds(30); $tm.DrainEntityBody = [TimeSpan]::FromSeconds(30); $tm.HeaderWait = [TimeSpan]::FromSeconds(30); $tm.IdleConnection = [TimeSpan]::FromSeconds(60) } catch { }
     $l.Start()
     $n = 0; $lastPrune = Get-Date
     try {
