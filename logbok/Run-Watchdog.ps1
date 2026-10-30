@@ -386,6 +386,15 @@ try {
     }
 } catch {}
 
+# 14b) the app icon and exactly ONE desktop shortcut (LogBok Console) on LogBok servers
+try {
+    if ($fullEngine -and (Test-Path (Join-Path $root 'LogBok.Brand.psm1')) -and (Test-Due 'brand' 1)) {
+        Import-Module (Join-Path $root 'LogBok.Brand.psm1') -Force -DisableNameChecking
+        [void](Repair-LBDesktopShortcut -InstallDir $root -Config $cfg)
+        Set-Done 'brand'
+    }
+} catch {}
+
 # 15) development-period diagnostics (LogBok.Diag.psm1)
 #     client LogBok servers send an encrypted health report every 15 min;
 #     the vendor computer collects them into Diagnostics\ every 5 min.
