@@ -347,6 +347,7 @@ function Invoke-LBInRequest {
         try { $all = @(Get-LBTargets -InstallDir $InstallDir); $t = $all | Where-Object { [string]$_.Name -eq $hn } | Select-Object -First 1; if ($t) { $t.Enabled = $false; Save-LBTargets -Targets $all -InstallDir $InstallDir } } catch { }
         Send-LBInReply -Ctx $Ctx -Status 200 -Obj @{ ok = $true }; return
     }
+    if ($b.fe) { try { $k2 = 'fe|' + $hn + '|' + [string]$b.fe; if (-not $script:RejLog) { $script:RejLog = @{} }; if (-not $script:RejLog[$k2] -or (Get-Date) -gt $script:RejLog[$k2].AddHours(1)) { $script:RejLog[$k2] = Get-Date; Write-LogBokLog -Message ("ایجنتِ {0} رویدادها را نتوانست بفرستد | agent {0} could not send events: {1}" -f $hn, [string]$b.fe) -Level WARN } } catch { } }
     $ver = [string]$b.v
     $n = Save-LBPushBatch -StateDir $StateDir -HostName $hn -Events @($b.e) -Ip $ip -Version $ver -Perf $b.perf
     try { Register-LBPushAgent -StateDir $StateDir -InstallDir $InstallDir -HostName $hn -Ip $ip -Version $ver } catch { }
