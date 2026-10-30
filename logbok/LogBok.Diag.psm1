@@ -73,7 +73,7 @@ function New-LBDiagReport {
     Add '== agents (no secrets) =='
     try {
         $ak = Get-Content (Join-Path $sd 'agent-keys.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-        foreach ($pp in $ak.PSObject.Properties) { $a = $pp.Value; Add ('- {0} ip={1} version={2} status={3} enrolled={4} last={5}' -f $pp.Name, $a.Ip, $a.Version, $a.Status, $a.Enrolled, $a.LastTs) }
+        foreach ($pp in $ak.PSObject.Properties) { $a = $pp.Value; $st2 = ''; try { $sf = Join-Path $sd ('agents\' + $pp.Name + '.json'); if (Test-Path $sf) { $sj = Get-Content $sf -Raw -Encoding UTF8 | ConvertFrom-Json; $st2 = ('step={0} ok={1} msg={2} at={3}' -f $sj.Step, $sj.Ok, (([string]$sj.Message) -replace '\s+', ' '), $sj.Updated) } } catch { }; Add ('- {0} ip={1} version={2} status={3} enrolled={4} last={5} reenroll={6} pendingAt={7} pendingIp={8} {9}' -f $pp.Name, $a.Ip, $a.Version, $a.Status, $a.Enrolled, $a.LastTs, $a.Reenroll, $a.PendingAt, $a.PendingIp, $st2) }
     } catch { Add '(none)' }
     try { $tj = Get-Content (Join-Path $sd 'targets.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json; Add ('targets: ' + ((@($tj) | ForEach-Object { '{0}[{1}]' -f $_.Name, (@($_.Methods) + @($_.Method) | Where-Object { $_ }) -join '/' }) -join ', ')) } catch { }
     Add ''
