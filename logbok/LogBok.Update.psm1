@@ -162,7 +162,20 @@ function Publish-LBAgentMirror {
     } catch { }
 }
 
+# فقط یک به‌روزرسانی در هر لحظه (Watchdog، Realtime و کنسول هم‌زمان صدا می‌زنند) | one update at a time (Watchdog, Realtime and the console may call it together)
 function Invoke-LBServerUpdate {
+    param([string]$InstallDir, $Config)
+    $mx = $null; $own = $false
+    try { $mx = New-Object System.Threading.Mutex($false, 'Global\LogBokServerUpdate') } catch { $mx = $null }
+    if ($mx) {
+        try { $own = $mx.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $own = $true } catch { $own = $false }
+        if (-not $own) { $mx.Dispose(); return $null }
+    }
+    try { return (Invoke-LBServerUpdateCore -InstallDir $InstallDir -Config $Config) }
+    finally { if ($mx) { if ($own) { try { $mx.ReleaseMutex() } catch { } }; $mx.Dispose() } }
+}
+
+function Invoke-LBServerUpdateCore {
     param([string]$InstallDir, $Config)
     $feed = ''; try { $feed = [string]$Config.Update.ServerFeed } catch { }
     # engine server installed from an older setup (no feed set): use the official BokerNet feed
