@@ -177,7 +177,12 @@ function Get-LBPushEvents {
     $ids = @{}; foreach ($x in @($Id | Where-Object { $null -ne $_ })) { $ids[[int]$x] = $true }
     $out = New-Object System.Collections.ArrayList
     foreach ($f in @(Get-ChildItem -Path $dir -Filter '*.ndjson' -File -ErrorAction SilentlyContinue | Where-Object { $_.BaseName -ge $fromKey } | Sort-Object Name -Descending)) {
-        $lines = @(); try { $lines = [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::UTF8) } catch { continue }
+        # خواندن با اشتراکِ نوشتن تا ایجنت‌این هم‌زمان بتواند بیفزاید | read with write-sharing so AgentIn can append at the same time
+        $lines = @()
+        try {
+            $fs = New-Object IO.FileStream($f.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+            try { $sr = New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8); $lines = @($sr.ReadToEnd() -split "`r?`n") } finally { $fs.Dispose() }
+        } catch { continue }
         for ($i = $lines.Count - 1; $i -ge 0; $i--) {
             $ln = $lines[$i]; if (-not $ln) { continue }
             if ($ids.Count) { if ($ln -notmatch '"i":(\d+)') { continue }; if (-not $ids[[int]$Matches[1]]) { continue } }
