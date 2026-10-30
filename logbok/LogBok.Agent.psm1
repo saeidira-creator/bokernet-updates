@@ -480,7 +480,9 @@ function Invoke-LogBokForward {
         if ($fails) { break }
     }
     # control heartbeat (always): health/inventory/results up, policy/command/update down
-    if (-not $fails) { $c = $null; try { $c = Invoke-LogBokControl -InstallDir $InstallDir -Info $a } catch { $c = @{ Ok = $false; Error = $_.Exception.Message } }; if (-not $c.Ok) { $fails++; $lastErr = [string]$c.Error } }
+    # the heartbeat goes out EVERY cycle, also after a failed event batch, and carries that error, so the server
+    # always sees the computer as online and learns why events are not arriving
+    $c = $null; try { $c = Invoke-LogBokControl -InstallDir $InstallDir -Info $a -FwdError $lastErr } catch { $c = @{ Ok = $false; Error = $_.Exception.Message } }; if (-not $c.Ok) { $fails++; $lastErr = (($lastErr + ' | heartbeat: ' + [string]$c.Error).Trim(' |')) }
     try { ($bm | ConvertTo-Json -Depth 4) | Set-Content -Path $bf -Encoding UTF8 } catch { }
     $res = [ordered]@{ At = (Get-Date).ToString('o'); Sent = $sent; Ok = (-not $fails); Error = $lastErr }
     try { ($res | ConvertTo-Json) | Set-Content -Path (Join-Path $InstallDir 'state\forward-last.json') -Encoding UTF8 } catch { }
@@ -1306,9 +1308,10 @@ function Invoke-LogBokAgentSelfUpdate {
 
 # --- control heartbeat: reports up, commands down --------------------------
 function Invoke-LogBokControl {
-    param([string]$InstallDir, $Info)
+    param([string]$InstallDir, $Info, [string]$FwdError = '')
     $sd = Join-Path $InstallDir 'state'
     $body = [ordered]@{ v = [string]$Info.Version; e = @(); ctl = 1; ph = [string]$Info.PayloadHash }
+    if ($FwdError) { $body.fe = $FwdError.Substring(0, [math]::Min(500, $FwdError.Length)) }
     # live sessions (console/RDP) on every heartbeat
     try { $sm = Join-Path $InstallDir 'LogBok.Sessions.psm1'; if (Test-Path $sm) { if (-not (Get-Command Get-LBLiveSessions -ErrorAction SilentlyContinue)) { Import-Module $sm -DisableNameChecking -ErrorAction Stop }; $body.sess = @(Get-LBLiveSessions); $body.sessAt = (Get-Date).ToString('o') } } catch { }
     $sendPat = $false
