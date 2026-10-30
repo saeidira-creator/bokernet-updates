@@ -177,6 +177,42 @@ function Test-LBIsSelf {
     return $false
 }
 
+# --- learned on/off pattern per agent computer (state\agent-presence.json) ---------------------
+#  For every hour of the week we count how often the computer was seen online at that hour.
+function Update-LBPresence {
+    param([string]$StateDir, [string]$HostName, [bool]$Online, $LastSeen)
+    $f = Join-Path $StateDir 'agent-presence.json'
+    $all = @{}
+    try { if (Test-Path $f) { $j = Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json; foreach ($p in $j.PSObject.Properties) { $all[$p.Name] = $p.Value } } } catch { }
+    $now = Get-Date
+    $slot = [int]$now.DayOfWeek * 24 + $now.Hour
+    $h = $all[$HostName]
+    if (-not $h) { $h = [pscustomobject]@{ On = @(0) * 168; Obs = @(0) * 168; Since = $now.ToString('o', $script:Inv); LastSlotAt = '' } }
+    $on = @($h.On); $obs = @($h.Obs); if ($on.Count -ne 168) { $on = @(0) * 168 }; if ($obs.Count -ne 168) { $obs = @(0) * 168 }
+    # one observation per computer per clock hour
+    $stamp = $now.ToString('yyyy-MM-dd HH')
+    if ([string]$h.LastSlotAt -ne $stamp) {
+        $obs[$slot] = [int]$obs[$slot] + 1
+        $wasOn = $Online
+        if (-not $wasOn -and $LastSeen) { try { $wasOn = ($LastSeen.ToLocalTime().ToString('yyyy-MM-dd HH') -eq $stamp) } catch { } }
+        if ($wasOn) { $on[$slot] = [int]$on[$slot] + 1 }
+        $h = [pscustomobject]@{ On = $on; Obs = $obs; Since = [string]$h.Since; LastSlotAt = $stamp }
+        $all[$HostName] = $h
+        try { $o = [ordered]@{}; foreach ($k in ($all.Keys | Sort-Object)) { $o[$k] = $all[$k] }; [IO.File]::WriteAllText($f, ($o | ConvertTo-Json -Depth 4 -Compress), (New-Object Text.UTF8Encoding($false))) } catch { }
+    }
+    # learned once this hour-of-week was observed at least twice (two weeks), or the computer was watched for 7+ days
+    $days = 0; try { $days = ($now - [datetime]::Parse([string]$h.Since, $script:Inv, [Globalization.DateTimeStyles]::RoundtripKind)).TotalDays } catch { }
+    $n = [int]$obs[$slot]; $ratio = if ($n -gt 0) { [double]$on[$slot] / $n } else { 1.0 }
+    $learned = ($n -ge 2) -or ($days -ge 7 -and $n -ge 1)
+    # a short human summary: the hours of a weekday it is usually on
+    $pattern = ''
+    if ($days -ge 2) {
+        $hrs = @(); for ($hh = 0; $hh -lt 24; $hh++) { $t = 0; $c = 0; for ($d = 0; $d -lt 7; $d++) { $t += [int]$on[$d * 24 + $hh]; $c += [int]$obs[$d * 24 + $hh] }; if ($c -gt 0 -and ($t / $c) -ge 0.5) { $hrs += $hh } }
+        if ($hrs.Count -and $hrs.Count -lt 24) { $pattern = ('معمولاً روشن | usually on {0:00}:00-{1:00}:59' -f $hrs[0], $hrs[-1]) }
+    }
+    return [pscustomobject]@{ Learned = $learned; OnRatio = $ratio; OffNormalNow = ($learned -and $ratio -lt 0.25); Pattern = $pattern }
+}
+
 # which channels to probe per target (based on its role in config)
 function Get-LBConnTargets {
     param($Config)
@@ -296,16 +332,25 @@ function Test-LBConnTarget {
     }
 
     # --- push agent: freshness of received events ---
+    #  Office computers are switched off after work and on weekends. LogBok learns, per computer and per
+    #  hour of the week, when it is normally on, so "off at its usual off-time" is normal (OK), not a problem.
     if ($Channels -contains 'agent-push') {
         $nm = $Target; if ($Config.AgentHosts -and $Config.AgentHosts[$Target]) { $nm = [string]$Config.AgentHosts[$Target] }
-        $last = $null; try { $last = Get-LBPushLast -StateDir (Get-LBStateDir -Config $Config) -HostName $nm } catch { }
+        $sdir = Get-LBStateDir -Config $Config
+        $last = $null; try { $last = Get-LBPushLast -StateDir $sdir -HostName $nm } catch { }
         $at = $null; if ($last) { try { $at = [datetime]::Parse([string]$last.At, $script:Inv, [Globalization.DateTimeStyles]::RoundtripKind) } catch { } }
         $age = if ($at) { [int]((Get-Date) - $at).TotalMinutes } else { -1 }
-        $st = if ($age -ge 0 -and $age -le 10) { 'OK' } elseif ($age -ge 0 -and $age -le 1440) { 'Warn' } else { 'Fail' }
+        $online = ($age -ge 0 -and $age -le 10)
+        $pr = Update-LBPresence -StateDir $sdir -HostName $nm -Online $online -LastSeen $at
+        $usuallyOff = ($pr -and $pr.Learned -and $pr.OnRatio -lt 0.25)
+        # off at its usual time = OK; off up to 3 days (night, weekend, holiday) = Warn without alarm; longer = Fail
+        $st = if ($online) { 'OK' } elseif ($at -and $usuallyOff) { 'OK' } elseif ($age -ge 0 -and $age -le 4320) { 'Warn' } else { 'Fail' }
+        $pat = if ($pr -and $pr.Pattern) { ' · ' + $pr.Pattern } else { '' }
+        $reason = if ($online) { '' } elseif ($at -and $usuallyOff) { 'خاموش است؛ در این ساعت معمولاً خاموش است (رفتارِ یادگرفته‌شده) | switched off - normal for this computer at this time (learned)' } elseif ($at) { 'ایجنت مدتی است رویدادی نفرستاده (شاید سیستم خاموش است) | the agent has not sent events recently (the computer may be off)' } else { 'ایجنت روی این سیستم نصب نیست یا هنوز وصل نشده؛ لاگ‌بوک بدونِ ایجنت به سیستم‌ها وصل نمی‌شود (پورت‌های 135/445/5985 استفاده نمی‌شود) | no agent on this computer yet: LogBok reaches computers only through its agent (ports 135/445/5985 are not used)' }
         [void]$res.Add((New-LBConn -Target $Target -Channel 'agent-push' -Ok ($st -ne 'Fail') -State $st -Ms 0 `
-            -Detail $(if ($at) { ("آخرین دریافت | last received: {0} ({1} min) · {2}" -f $at.ToString('yyyy-MM-dd HH:mm'), $age, [string]$last.Ip) } else { 'هنوز رویدادی نرسیده | nothing received yet' }) `
-            -Reason $(if ($st -eq 'OK') { '' } elseif ($at) { 'ایجنت مدتی است رویدادی نفرستاده | the agent has not sent events recently' } else { 'ایجنت روی این سیستم نصب نیست یا هنوز وصل نشده؛ لاگ‌بوک بدونِ ایجنت به سیستم‌ها وصل نمی‌شود (پورت‌های 135/445/5985 استفاده نمی‌شود) | no agent on this computer yet: LogBok reaches computers only through its agent (ports 135/445/5985 are not used)' }) `
-            -Remedy $(if ($at) { 'روی آن سیستم: روشن باشد و TCP 8687 به این سرور برسد؛ لاگ: C:\Windows\Temp\logbok-agent-install.log | on that computer: powered on and TCP 8687 to this server reachable' } else { 'ایجنت را نصب کنید: Computers → Add Computers → نصبِ امن با Group Policy (بدونِ باز کردنِ پورت) | install the agent: Computers → Add Computers → secure install via Group Policy (no open port)' })))
+            -Detail $(if ($at) { ("آخرین دریافت | last received: {0} ({1} min) · {2}{3}" -f $at.ToString('yyyy-MM-dd HH:mm'), $age, [string]$last.Ip, $pat) } else { 'هنوز رویدادی نرسیده | nothing received yet' }) `
+            -Reason $reason `
+            -Remedy $(if ($at) { 'اگر سیستم روشن است: TCP 8687 به این سرور برسد؛ لاگ: C:\Windows\Temp\logbok-agent-gpo.log | if the computer is on: TCP 8687 to this server must be reachable' } else { 'ایجنت را نصب کنید: Computers → Add Computers → نصبِ امن با Group Policy (بدونِ باز کردنِ پورت) | install the agent: Computers → Add Computers → secure install via Group Policy (no open port)' })))
         $Channels = @($Channels | Where-Object { $_ -ne 'agent-push' })
         if (-not $Channels.Count) { return $res.ToArray() }
     }
