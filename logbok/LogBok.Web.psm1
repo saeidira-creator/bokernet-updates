@@ -486,6 +486,17 @@ function Get-LBBodyCred {
 }
 # دامنهٔ ذخیره‌شده (domainId) یا ورودیِ دستی | a saved domain (domainId) or the typed server/user/password
 # GPO publish with a clear message when the saved domain account lacks the rights
+# last contact of an agent = the later of its last event batch and its last signed request (heartbeat/update)
+function Get-LBAgentLastSeen {
+    param($PushLast, $KeyRec)
+    $a = $null; $b = $null
+    try { if ($PushLast -and $PushLast.At) { $a = [datetime]::Parse([string](ConvertTo-LBIsoText $PushLast.At), $script:Inv, [Globalization.DateTimeStyles]::RoundtripKind) } } catch { }
+    try { if ($KeyRec -and $KeyRec.LastTs) { $b = [datetime]::Parse([string]$KeyRec.LastTs, $script:Inv, [Globalization.DateTimeStyles]::RoundtripKind) } } catch { }
+    $m = $a; if ($b -and (-not $m -or $b.ToUniversalTime() -gt $m.ToUniversalTime())) { $m = $b }
+    if (-not $m) { return '' }
+    return $m.ToLocalTime().ToString('yyyy-MM-ddTHH:mm:ss', $script:Inv)
+}
+
 function Invoke-LBWebGpoPublish {
     param($Policy, $Domain, [string]$StateDir)
     try { return (Publish-LBAgentGpo -Policy $Policy -InstallDir $script:Root -StateDir $StateDir) }
@@ -1276,13 +1287,13 @@ function Invoke-LBWebApi {
                         approval=$(if ($akeys[$nm.ToUpperInvariant()]) { $k0 = $akeys[$nm.ToUpperInvariant()]; $(if ($k0.Reenroll) { 'pending-reenroll' } else { [string]$k0.Status }) } else { '' })
                         version=$verA
                         perf=$(try { $pl = Get-LBPushLast -StateDir $sd -HostName $nm; if ($pl -and $pl.Perf) { [ordered]@{ cpu=[double]$pl.Perf.CpuSeconds; sec=[double]$pl.Perf.Seconds; mem=[int]$pl.Perf.MemMB } } else { $null } } catch { $null })
-                        lastSeen=$(try { $pl2 = Get-LBPushLast -StateDir $sd -HostName $nm; if ($pl2) { [string]$pl2.At } else { '' } } catch { '' }) } })
+                        lastSeen=$(try { Get-LBAgentLastSeen -PushLast $plA -KeyRec $kA } catch { '' }) } })
         # ایجنت‌هایی که ثبت‌نام کرده‌اند ولی وضعیتِ نصب ندارند (مثلاً نصبِ دستی یا GPO) | enrolled agents without an install-status file (manual/GPO installs)
         foreach ($kn in @($akeys.Keys)) {
             if ($items | Where-Object { ([string]$_.name).ToUpperInvariant() -eq ([string]$kn).ToUpperInvariant() }) { continue }
             $k1 = $akeys[$kn]; $pl3 = $null; try { $pl3 = Get-LBPushLast -StateDir $sd -HostName $kn } catch { }
             $items += [ordered]@{ name=[string]$kn; address=[string]$k1.Ip; method=$(if ($k1.Status -eq 'revoked') { 'package' } else { 'package' }); kind='Windows'; step='enrolled'; ok=$true; message=''; updated=[string]$k1.Enrolled; collector=''; conn=''; hasCred=$false; source=$false
-                                  approval=$(if ($k1.Reenroll) { 'pending-reenroll' } else { [string]$k1.Status }); version=$(if ($pl3 -and $pl3.Version) { [string]$pl3.Version } else { [string]$k1.Version }); perf=$null; lastSeen=$(if ($pl3) { ConvertTo-LBIsoText $pl3.At } else { '' }) }
+                                  approval=$(if ($k1.Reenroll) { 'pending-reenroll' } else { [string]$k1.Status }); version=$(if ($pl3 -and $pl3.Version) { [string]$pl3.Version } else { [string]$k1.Version }); perf=$null; lastSeen=$(try { Get-LBAgentLastSeen -PushLast $pl3 -KeyRec $k1 } catch { '' }) }
         }
         $inv = @(); $invPath = Join-Path $sd 'inventory.json'
         if (Test-Path $invPath) { try { $inv = @(Get-Content $invPath -Raw -Encoding UTF8 | ConvertFrom-Json | ForEach-Object { $_ }) } catch { } }
