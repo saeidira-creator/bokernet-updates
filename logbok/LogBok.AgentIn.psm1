@@ -141,14 +141,22 @@ function Save-LBPushBatch {
     }
     foreach ($f in $byFile.Keys) {
         $d = Split-Path -Parent $f; if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
-        [IO.File]::AppendAllLines($f, [string[]]$byFile[$f].ToArray(), (New-Object Text.UTF8Encoding($false)))
+        $txt = ([string]::Join("`r`n", [string[]]$byFile[$f].ToArray()) + "`r`n"); $tb = (New-Object Text.UTF8Encoding($false)).GetBytes($txt)
+        # چند تلاش اگر فایل لحظه‌ای قفل باشد | retry briefly if the file is momentarily locked
+        for ($att = 1; $att -le 10; $att++) {
+            try { $fs = New-Object IO.FileStream($f, [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read); try { $fs.Write($tb, 0, $tb.Length) } finally { $fs.Dispose() }; break }
+            catch [IO.IOException] { if ($att -ge 10) { throw }; Start-Sleep -Milliseconds (100 * $att) }
+        }
     }
     $hd = Get-LBPushDir -StateDir $StateDir -HostName $HostName
     if (-not (Test-Path $hd)) { New-Item -ItemType Directory -Path $hd -Force | Out-Null }
     $prev = Get-LBPushLast -StateDir $StateDir -HostName $HostName
     $total = [long]$n; if ($prev -and $prev.Total) { $total += [long]$prev.Total }
     $last = [ordered]@{ Host = $HostName; At = (Get-Date).ToString('o', $script:Inv); Ip = $Ip; Version = $Version; Count = $n; Total = $total; Perf = $Perf; First = $(if ($prev -and $prev.First) { [string]$prev.First } else { (Get-Date).ToString('o', $script:Inv) }) }
-    [IO.File]::WriteAllText((Join-Path $hd 'last.json'), (ConvertTo-Json -InputObject $last), (New-Object Text.UTF8Encoding($false)))
+    for ($att = 1; $att -le 5; $att++) {
+        try { [IO.File]::WriteAllText((Join-Path $hd 'last.json'), (ConvertTo-Json -InputObject $last), (New-Object Text.UTF8Encoding($false))); break }
+        catch [IO.IOException] { if ($att -ge 5) { break }; Start-Sleep -Milliseconds (100 * $att) }
+    }
     return $n
 }
 
@@ -378,7 +386,11 @@ function Start-LBAgentInServer {
         while ($l.IsListening) {
             $ctx = $null
             try { $ctx = $l.GetContext() } catch { break }
-            try { Invoke-LBInRequest -Ctx $ctx -StateDir $StateDir -InstallDir $InstallDir } catch { try { Send-LBInReply -Ctx $ctx -Status 500 -Obj @{ error = 'server error' } } catch { } }
+            try { Invoke-LBInRequest -Ctx $ctx -StateDir $StateDir -InstallDir $InstallDir } catch {
+                $em = [string]$_.Exception.Message
+                try { $k5 = 'err|' + $em; if (-not $script:RejLog) { $script:RejLog = @{} }; if (-not $script:RejLog[$k5] -or (Get-Date) -gt $script:RejLog[$k5].AddHours(1)) { $script:RejLog[$k5] = Get-Date; Write-LogBokLog -Message ("خطای سرورِ ایجنت | agent server error on {0}: {1}" -f [string]$ctx.Request.Url.AbsolutePath, $em) -Level WARN } } catch { }
+                try { Send-LBInReply -Ctx $ctx -Status 500 -Obj @{ error = 'server error' } } catch { }
+            }
             if ((Get-Date) -gt $lastPrune.AddHours(6)) { Clear-LBPushOld -StateDir $StateDir; $lastPrune = Get-Date }
             $n++; if ($MaxRequests -gt 0 -and $n -ge $MaxRequests) { break }
         }
