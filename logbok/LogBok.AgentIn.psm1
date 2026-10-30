@@ -195,8 +195,10 @@ function Send-LBInReply {
 
 function Test-LBBadIp { param([string]$Ip) $x = $script:BadIp[$Ip]; return ($x -and $x.Until -and (Get-Date) -lt $x.Until) }
 function Add-LBBadIp {
-    param([string]$Ip)
+    param([string]$Ip, [string]$Why = '', [string]$HostName = '')
     if (-not $Ip) { return }
+    # record every rejection once per host/reason per hour, so a silent agent shows up in the log
+    try { $k = $Ip + '|' + $HostName + '|' + $Why; if (-not $script:RejLog) { $script:RejLog = @{} }; if (-not $script:RejLog[$k] -or (Get-Date) -gt $script:RejLog[$k].AddHours(1)) { $script:RejLog[$k] = Get-Date; Write-LogBokLog -Message ("درخواستِ ایجنت رد شد | agent request rejected: {0} ({1}) - {2}" -f $HostName, $Ip, $Why) -Level WARN } } catch { }
     $x = $script:BadIp[$Ip]; if (-not $x -or (Get-Date) -gt $x.Since.AddMinutes(10)) { $x = @{ N = 0; Since = Get-Date; Until = $null } }
     $x.N++; if ($x.N -ge 20) { $x.Until = (Get-Date).AddMinutes(30) }
     $script:BadIp[$Ip] = $x
@@ -273,7 +275,7 @@ function Invoke-LBInRequest {
     if ($path -eq '/enroll') {
         $enr = Get-LBEnrollInfo -StateDir $StateDir
         if (-not (Test-LBEnrollValid $enr)) { Send-LBInReply -Ctx $Ctx -Status 403 -Obj @{ error = 'enrollment token expired, used up or revoked — download a new agent package from the console' }; return }
-        if (-not (Test-LBEqualHex (Get-LBHmacHex -Key ([string]$enr.Token) -Data $buf) $sig)) { Add-LBBadIp $ip; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'bad enrollment signature (package from another server or modified)' }; return }
+        if (-not (Test-LBEqualHex (Get-LBHmacHex -Key ([string]$enr.Token) -Data $buf) $sig)) { Add-LBBadIp $ip 'bad enrollment signature' $hn; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'bad enrollment signature (package from another server or modified)' }; return }
         $plain = $null; try { $plain = [Text.Encoding]::UTF8.GetString((Unprotect-LBAesBytes -Key (Get-LBAesKey ([string]$enr.Token) 'enroll') -Data $raw)) | ConvertFrom-Json } catch { }
         if (-not $plain -or [string]$plain.secret -notmatch '^[0-9a-f]{64}$') { Send-LBInReply -Ctx $Ctx -Status 400 -Obj @{ error = 'bad enrollment body' }; return }
         $secEnc = Protect-LBMachine ([string]$plain.secret)
@@ -307,8 +309,8 @@ function Invoke-LBInRequest {
 
     # /ingest و /bye: کلیدِ اختصاصیِ همان سیستم | per-agent key
     $r = $keys[$hn]; $sec = Get-LBAgentSecret $r
-    if (-not $sec) { Add-LBBadIp $ip; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'unknown agent — re-enroll'; reenroll = $true }; return }
-    if (-not (Test-LBEqualHex (Get-LBHmacHex -Key $sec -Data $buf) $sig)) { Add-LBBadIp $ip; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'bad signature' }; return }
+    if (-not $sec) { Add-LBBadIp $ip 'unknown agent (no key on server)' $hn; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'unknown agent — re-enroll'; reenroll = $true }; return }
+    if (-not (Test-LBEqualHex (Get-LBHmacHex -Key $sec -Data $buf) $sig)) { Add-LBBadIp $ip $(if ($r.PendingSecret) { 'bad signature - agent was reinstalled, re-enrollment waits for approval' } else { 'bad signature (agent key differs from the server)' }) $hn; Send-LBInReply -Ctx $Ctx -Status 401 -Obj @{ error = 'bad signature' }; return }
     if ([string]$r.Status -eq 'revoked') { Send-LBInReply -Ctx $Ctx -Status 403 -Obj @{ error = 'agent revoked' }; return }
     if ([string]$r.Status -eq 'pending') { Send-LBInReply -Ctx $Ctx -Status 202 -Obj @{ ok = $false; status = 'pending' }; return }
     $lastTs = ConvertTo-LBDate ([string]$r.LastTs)
