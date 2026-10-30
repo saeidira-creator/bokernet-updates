@@ -186,6 +186,11 @@ function Clear-LBPushOld {
 
 function Send-LBInReply {
     param($Ctx, [int]$Status, $Obj)
+    # every refused agent request is logged once per host/status/reason per hour (no silent failures)
+    if ($Status -ge 400 -and $Status -ne 404) {
+        try { $why = ''; try { $why = [string]$Obj.error } catch { }; $k = ('{0}|{1}|{2}' -f $script:LBCurHost, $Status, $why); if (-not $script:RejLog) { $script:RejLog = @{} }
+              if (-not $script:RejLog[$k] -or (Get-Date) -gt $script:RejLog[$k].AddHours(1)) { $script:RejLog[$k] = Get-Date; Write-LogBokLog -Message ("درخواستِ ایجنت رد شد | agent request refused: {0} ({1}) HTTP {2} {3} {4}" -f $script:LBCurHost, $script:LBCurIp, $Status, $script:LBCurPath, $why) -Level WARN } } catch { }
+    }
     try {
         $b = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $Obj -Compress))
         $Ctx.Response.StatusCode = $Status; $Ctx.Response.ContentType = 'application/json'
@@ -248,6 +253,7 @@ function Invoke-LBInRequest {
     if (Test-LBBadIp $ip) { Send-LBInReply -Ctx $Ctx -Status 429 -Obj @{ error = 'too many bad requests' }; return }
     if ($req.ContentLength64 -gt 16MB) { Send-LBInReply -Ctx $Ctx -Status 413 -Obj @{ error = 'too large' }; return }
     $hn = ([string]$req.Headers['X-LogBok-Host']).Trim().ToUpperInvariant()
+    $script:LBCurHost = $hn; $script:LBCurIp = $ip; $script:LBCurPath = $path
     $ts = [string]$req.Headers['X-LogBok-Ts']; $sig = ([string]$req.Headers['X-LogBok-Sig']).ToLowerInvariant()
     $aid = ([string]$req.Headers['X-LogBok-Id']).Trim().ToLowerInvariant(); if ($aid -notmatch '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$') { $aid = '' }
     if ($hn -notmatch '^[A-Z0-9_.\-]{1,63}$' -or -not $ts -or $sig -notmatch '^[0-9a-f]{64}$') { Add-LBBadIp $ip; Send-LBInReply -Ctx $Ctx -Status 400 -Obj @{ error = 'bad headers' }; return }
@@ -314,8 +320,14 @@ function Invoke-LBInRequest {
     if ([string]$r.Status -eq 'revoked') { Send-LBInReply -Ctx $Ctx -Status 403 -Obj @{ error = 'agent revoked' }; return }
     if ([string]$r.Status -eq 'pending') { Send-LBInReply -Ctx $Ctx -Status 202 -Obj @{ ok = $false; status = 'pending' }; return }
     $lastTs = ConvertTo-LBDate ([string]$r.LastTs)
-    if ($lastTs -and $tsd.ToUniversalTime() -le $lastTs.ToUniversalTime()) { Send-LBInReply -Ctx $Ctx -Status 409 -Obj @{ error = 'replay' }; return }
-    $r.LastTs = $tsd.ToUniversalTime().ToString('o', $script:Inv); $keys[$hn] = $r; Save-LBAgentKeys -StateDir $StateDir -Keys $keys
+    # replay protection: an agent sends several requests in parallel (events, heartbeat, update), so they can
+    # arrive out of order. Refuse only an exact repeat of a recently seen request (within the 15-min skew window).
+    if (-not $script:LBSeenSig) { $script:LBSeenSig = @{} }
+    $sk = $hn + '|' + $sig
+    if ($script:LBSeenSig.ContainsKey($sk)) { Send-LBInReply -Ctx $Ctx -Status 409 -Obj @{ error = 'replay' }; return }
+    $script:LBSeenSig[$sk] = Get-Date
+    if ($script:LBSeenSig.Count -gt 5000) { $cut = (Get-Date).AddMinutes(-20); foreach ($kk in @($script:LBSeenSig.Keys)) { if ($script:LBSeenSig[$kk] -lt $cut) { $script:LBSeenSig.Remove($kk) } } }
+    if (-not $lastTs -or $tsd.ToUniversalTime() -gt $lastTs.ToUniversalTime()) { $r.LastTs = $tsd.ToUniversalTime().ToString('o', $script:Inv); $keys[$hn] = $r; Save-LBAgentKeys -StateDir $StateDir -Keys $keys }
     if ($path -eq '/update') {
         # کدِ تازهٔ ایجنت، رمزگذاری‌شده با کلیدِ همان سیستم و امضاشده | new agent code, encrypted + signed for this agent
         $zf = Join-Path $InstallDir '_Agents\Windows\LogBok-Agent.zip'
