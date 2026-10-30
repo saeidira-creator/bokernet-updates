@@ -173,6 +173,30 @@ try {
     }
 } catch {}
 
+# 5.45) liveness: the always-on listeners must actually answer. A task can show "Running" while its
+#       listener is stuck (then agents and the console silently stop). Probe them; restart if dead.
+try {
+    if ($fullEngine) {
+        $probe = { param([string]$u) try { $rq = [Net.HttpWebRequest]::Create($u); $rq.Timeout = 15000; $rq.ReadWriteTimeout = 15000; $rq.KeepAlive = $false; $rs = $rq.GetResponse(); $rs.Close(); return $true } catch [Net.WebException] { if ($_.Exception.Response) { return $true }; return $false } catch { return $false } }
+        $inPort = 8687; try { if ($cfg.Agent -and $cfg.Agent.IngestPort) { $inPort = [int]$cfg.Agent.IngestPort } } catch { }
+        $webPort = 8686; try { if ($cfg.Web -and $cfg.Web.Port) { $webPort = [int]$cfg.Web.Port } } catch { }
+        foreach ($chk in @(@{ Job = 'AgentIn'; Url = ('http://127.0.0.1:{0}/ping' -f $inPort); Script = 'Run-AgentIn.ps1' }, @{ Job = 'Web'; Url = ('http://localhost:{0}/api/meta' -f $webPort); Script = 'Run-Web.ps1' })) {
+            $tk = Get-ScheduledTask -TaskName ('LogBok-' + $chk.Job) -TaskPath '\LogBok\' -ErrorAction SilentlyContinue
+            if (-not $tk -or [string]$tk.State -ne 'Running') { continue }
+            $ti = Get-ScheduledTaskInfo -TaskName ('LogBok-' + $chk.Job) -TaskPath '\LogBok\' -ErrorAction SilentlyContinue
+            if ($ti -and $ti.LastRunTime -and ((Get-Date) - $ti.LastRunTime).TotalMinutes -lt 3) { continue }   # just (re)started
+            if (& $probe $chk.Url) { continue }
+            Start-Sleep -Seconds 5
+            if (& $probe $chk.Url) { continue }
+            Stop-ScheduledTask -TaskName ('LogBok-' + $chk.Job) -TaskPath '\LogBok\' -ErrorAction SilentlyContinue
+            try { foreach ($pp in @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction Stop | Where-Object { [string]$_.CommandLine -like ('*' + $chk.Script + '*') -and $_.ProcessId -ne $PID })) { Stop-Process -Id $pp.ProcessId -Force -ErrorAction SilentlyContinue } } catch { }
+            Start-Sleep -Seconds 2
+            Start-ScheduledTask -TaskName ('LogBok-' + $chk.Job) -TaskPath '\LogBok\' -ErrorAction SilentlyContinue
+            try { Write-LogBokLog -Message ("جابِ {0} پاسخ نمی‌داد و دوباره راه‌اندازی شد | job {0} was not answering and was restarted" -f $chk.Job) -Level WARN -Config $cfg } catch { }
+        }
+    }
+} catch {}
+
 # 5.5) keep LogBok's own management path open
 try {
     # server only; clients open no inbound port
