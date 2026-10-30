@@ -183,12 +183,20 @@ function Get-LBConnTargets {
     $S = Get-LBConnSettings -Config $Config
     $mode = [string]$Config.CollectionMode
     $map = [ordered]@{}
+    $remoteOk = $false; try { $remoteOk = Test-LBRemoteAccessAllowed -Config $Config } catch { }
     function _add($name,$ch){ $k=[string]$name; if (-not $k) { return }; if (-not $map.Contains($k)) { $map[$k]=New-Object System.Collections.Generic.HashSet[string] }; [void]$map[$k].Add($ch) }
     # always: the engine host itself
     _add $env:COMPUTERNAME 'self'
-    if ($S.Targets.Count) { foreach ($t in $S.Targets) { _add $t 'eventlog'; _add $t 'winrm' } }
-    if ($mode -eq 'Remote') { foreach ($t in @($Config.Machines)) { _add $t 'eventlog'; _add $t 'winrm' } }
-    if ($mode -eq 'Collector' -and $Config.CollectorFqdn) { _add $Config.CollectorFqdn 'winrm' }
+    # remote channels (RPC 135 / WinRM 5985) only when remote access was explicitly switched on;
+    # otherwise every Windows computer is reached through the LogBok agent channel only
+    if ($remoteOk) {
+        if ($S.Targets.Count) { foreach ($t in $S.Targets) { _add $t 'eventlog'; _add $t 'winrm' } }
+        if ($mode -eq 'Remote') { foreach ($t in @($Config.Machines)) { _add $t 'eventlog'; _add $t 'winrm' } }
+        if ($mode -eq 'Collector' -and $Config.CollectorFqdn) { _add $Config.CollectorFqdn 'winrm' }
+    } else {
+        if ($S.Targets.Count) { foreach ($t in $S.Targets) { _add $t 'agent-push' } }
+        if ($mode -eq 'Remote') { foreach ($t in @($Config.Machines)) { _add $t 'agent-push' } }
+    }
     foreach ($t in @($Config.SqlServers)) { if (-not (Test-LBIsSelf $t)) { _add $t 'sql' } }
     foreach ($t in @($Config.IISServers)) { if (-not (Test-LBIsSelf $t)) { _add $t 'http' } }
     foreach ($t in @($Config.FtpServers)) { if (-not (Test-LBIsSelf $t)) { _add $t 'ftp' } }
@@ -202,14 +210,14 @@ function Get-LBConnTargets {
         if ((Test-LBIsSelf $addr) -and [string]$r.Kind -eq 'Windows') { continue }   # the engine host is probed separately
         switch ([string]$r.Kind) {
             'Windows' {
-                if ($r.Monitor -eq 'agent') { _add $addr 'agent-push' }
+                if ($r.Monitor -eq 'agent' -or ($r.Monitor -ne 'none' -and -not $remoteOk)) { _add $addr 'agent-push' }
                 elseif ($r.Monitor -ne 'none') { _add $addr 'eventlog'; _add $addr 'winrm' }
                 if ($roles -contains 'DC')   { _add $addr 'ldap'; _add $addr 'kerberos'; _add $addr 'dnsport' }
                 if ($roles -contains 'SQL')  { _add $addr 'sql' }
-                if ($roles -contains 'IIS')  { _add $addr 'http'; _add $addr 'smb' }
-                if ($roles -contains 'FTP')  { _add $addr 'ftp'; _add $addr 'smb' }
-                if ($roles -contains 'DHCP' -or $roles -contains 'Apache') { _add $addr 'smb' }
-                if (@($r.Custom | Where-Object { $_ -and $_.Type -eq 'File' }).Count) { _add $addr 'smb' }
+                if ($roles -contains 'IIS')  { _add $addr 'http'; if ($remoteOk) { _add $addr 'smb' } }
+                if ($roles -contains 'FTP')  { _add $addr 'ftp'; if ($remoteOk) { _add $addr 'smb' } }
+                if ($remoteOk -and ($roles -contains 'DHCP' -or $roles -contains 'Apache')) { _add $addr 'smb' }
+                if ($remoteOk -and @($r.Custom | Where-Object { $_ -and $_.Type -eq 'File' }).Count) { _add $addr 'smb' }
             }
             'NetworkDevice' { _add $addr 'syslog-in' }
             'Linux'         { _add $addr 'ssh' }
@@ -296,8 +304,8 @@ function Test-LBConnTarget {
         $st = if ($age -ge 0 -and $age -le 10) { 'OK' } elseif ($age -ge 0 -and $age -le 1440) { 'Warn' } else { 'Fail' }
         [void]$res.Add((New-LBConn -Target $Target -Channel 'agent-push' -Ok ($st -ne 'Fail') -State $st -Ms 0 `
             -Detail $(if ($at) { ("آخرین دریافت | last received: {0} ({1} min) · {2}" -f $at.ToString('yyyy-MM-dd HH:mm'), $age, [string]$last.Ip) } else { 'هنوز رویدادی نرسیده | nothing received yet' }) `
-            -Reason $(if ($st -eq 'OK') { '' } elseif ($at) { 'ایجنت مدتی است رویدادی نفرستاده | the agent has not sent events recently' } else { 'ایجنت هنوز به سرور وصل نشده | the agent has not contacted the server yet' }) `
-            -Remedy 'روی آن سیستم: روشن باشد، TCP 8687 به این سرور باز باشد؛ لاگ: C:\Windows\Temp\logbok-agent-install.log | on that computer: powered on, TCP 8687 to this server reachable'))
+            -Reason $(if ($st -eq 'OK') { '' } elseif ($at) { 'ایجنت مدتی است رویدادی نفرستاده | the agent has not sent events recently' } else { 'ایجنت روی این سیستم نصب نیست یا هنوز وصل نشده؛ لاگ‌بوک بدونِ ایجنت به سیستم‌ها وصل نمی‌شود (پورت‌های 135/445/5985 استفاده نمی‌شود) | no agent on this computer yet: LogBok reaches computers only through its agent (ports 135/445/5985 are not used)' }) `
+            -Remedy $(if ($at) { 'روی آن سیستم: روشن باشد و TCP 8687 به این سرور برسد؛ لاگ: C:\Windows\Temp\logbok-agent-install.log | on that computer: powered on and TCP 8687 to this server reachable' } else { 'ایجنت را نصب کنید: Computers → Add Computers → نصبِ امن با Group Policy (بدونِ باز کردنِ پورت) | install the agent: Computers → Add Computers → secure install via Group Policy (no open port)' })))
         $Channels = @($Channels | Where-Object { $_ -ne 'agent-push' })
         if (-not $Channels.Count) { return $res.ToArray() }
     }
