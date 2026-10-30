@@ -52,10 +52,30 @@ function New-LBDiagReport {
     } catch { Add ('(could not list: ' + $_.Exception.Message + ')') }
     Add ''
     Add '== update / state files =='
-    foreach ($n in 'version.txt', 'update-status.txt', 'update-last.txt', 'connectivity.json') {
+    foreach ($n in 'version.txt', 'update-status.txt', 'update-last.txt') {
         $p = Join-Path $sd $n
         if (Test-Path $p) { try { $c = (Get-Content $p -Raw -ErrorAction Stop) -replace '\s+', ' '; if ($c.Length -gt 1500) { $c = $c.Substring(0, 1500) + ' ...' }; Add ($n + ': ' + $c.Trim()) } catch { } }
     }
+    Add ''
+    Add '== connectivity (per computer and channel) =='
+    try {
+        $cj = Get-Content (Join-Path $sd 'connectivity.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        Add ('generated: ' + [string]$cj.Generated + '  mode: ' + [string]$cj.Mode)
+        foreach ($tg in @($cj.Targets)) {
+            Add ('- {0} ({1}) kind={2} status={3}' -f $tg.Name, $tg.Target, $tg.Kind, $tg.Status)
+            foreach ($ch in @($tg.Channels)) {
+                $dt = (([string]$ch.Detail) + ' ' + ([string]$ch.Reason)).Trim() -replace '\s+', ' '; if ($dt.Length -gt 220) { $dt = $dt.Substring(0, 220) + '...' }
+                Add ('    {0,-14} ok={1,-5} {2,-5} {3}' -f $ch.Channel, $ch.Ok, $ch.State, $dt)
+            }
+        }
+    } catch { Add '(none)' }
+    Add ''
+    Add '== agents (no secrets) =='
+    try {
+        $ak = Get-Content (Join-Path $sd 'agent-keys.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($pp in $ak.PSObject.Properties) { $a = $pp.Value; Add ('- {0} ip={1} version={2} status={3} enrolled={4} last={5}' -f $pp.Name, $a.Ip, $a.Version, $a.Status, $a.Enrolled, $a.LastTs) }
+    } catch { Add '(none)' }
+    try { $tj = Get-Content (Join-Path $sd 'targets.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json; Add ('targets: ' + ((@($tj) | ForEach-Object { '{0}[{1}]' -f $_.Name, (@($_.Methods) + @($_.Method) | Where-Object { $_ }) -join '/' }) -join ', ')) } catch { }
     Add ''
     Add '== LogBok log: WARN/ERROR lines, last 2 days (deduplicated) =='
     $logDir = Join-Path $Root 'logs'; try { if ($Config.Paths.Logs) { $logDir = $Config.Paths.Logs } } catch { }
@@ -64,7 +84,7 @@ function New-LBDiagReport {
         $seen = @{}; $rows = New-Object Collections.ArrayList
         foreach ($f in $files) {
             foreach ($l in (Get-Content $f.FullName -Encoding UTF8 -ErrorAction SilentlyContinue)) {
-                if ($l -notmatch '\[(WARN|ERROR)\]' -and ($l -replace '(?i)\b0 (failed|errors?)\b', '') -notmatch '(?i)exception|failed|cannot|could not|error') { continue }
+                if ($l -notmatch '\[(WARN|ERROR)\]' -and $l -notmatch '(?i)exception|failed|cannot|could not|error') { continue }
                 $key = ($l -replace '^\S+ \S+ ', '') -replace '\d+', '#'
                 if ($seen.ContainsKey($key)) { $seen[$key]++; continue }
                 $seen[$key] = 1; [void]$rows.Add(@($key, $l))
