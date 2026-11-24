@@ -247,38 +247,99 @@ function Invoke-DetectActiveDirectory {
 }
 
 # ---------------------------------------------- بروت‌فورس ورود ویندوز --
+# برای هر گروه (سیستم + کاربر + مبدأ): سیستم، کاربر، IP و پورت، نامِ سیستمِ مبدأ، پروتکل (NTLM/Kerberos)،
+# نوعِ ورود (محلی/شبکه/RDP…)، دلیل (رمزِ اشتباه/کاربرِ ناموجود/قفل…)، برنامه، تعداد، اولین و آخرین تلاش.
+# for each (computer + user + source): IP/port, source workstation, protocol, logon type, reason, process, count, first/last.
+$script:LBLogonTypeName = @{ '2'='محلی | Interactive'; '3'='شبکه (SMB/اشتراک/ابزار) | Network'; '4'='تسک | Batch'; '5'='سرویس | Service'; '7'='بازکردنِ قفلِ صفحه | Unlock'
+    '8'='شبکه، متنِ ساده (IIS/وب/IMAP) | Network cleartext'; '9'='runas | New credentials'; '10'='ریموت‌دسکتاپ | RDP'; '11'='کش‌شده | Cached interactive' }
+$script:LBFailReason = @{ '0xc000006a'='رمزِ اشتباه | wrong password'; '0xc0000064'='کاربرِ ناموجود | no such user'; '0xc0000234'='حسابِ قفل‌شده | account locked'
+    '0xc0000072'='حسابِ غیرفعال | account disabled'; '0xc000006f'='بیرون از ساعتِ مجاز | outside allowed hours'; '0xc0000070'='سیستمِ غیرمجاز | workstation not allowed'
+    '0xc0000071'='رمزِ منقضی | password expired'; '0xc0000193'='حسابِ منقضی | account expired'; '0xc0000224'='باید رمز را عوض کند | must change password'
+    '0xc000015b'='این نوعِ ورود مجاز نیست | logon type not granted'; '0xc000006d'='نام یا رمزِ نادرست | bad user name or password'; '0xc0000133'='اختلافِ ساعت با DC | clock skew'
+    '0x18'='رمزِ اشتباه (Kerberos) | wrong password'; '0x6'='کاربرِ ناموجود (Kerberos) | no such user'; '0x12'='حسابِ قفل/غیرفعال/منقضی (Kerberos) | account locked, disabled or expired'
+    '0x17'='رمزِ منقضی (Kerberos) | password expired'; '0x25'='اختلافِ ساعت (Kerberos) | clock skew' }
+function Get-LBFailedLogonInfo {
+    param($Event)
+    $m = @{}; try { $x = [xml]$Event.ToXml(); foreach ($d in @($x.Event.EventData.Data)) { if ($d.Name) { $m[[string]$d.Name] = [string]$d.'#text' } } } catch { }
+    $g = { param($n) $v = [string]$m[$n]; if ($v -eq '-' -or $v -eq '') { return '' }; return $v.Trim() }
+    $ip = & $g 'IpAddress'; $ip = $ip -replace '^::ffff:',''
+    if ($ip -in '::1','127.0.0.1') { $ip = 'localhost' }
+    $ws = & $g 'WorkstationName'; if (-not $ws) { $ws = & $g 'Workstation' }; $ws = $ws -replace '^\\\\',''
+    $proto = ''; $lt = ''; $code = ''
+    switch ([int]$Event.Id) {
+        4625 {
+            $pkg = & $g 'AuthenticationPackageName'; $lm = & $g 'LmPackageName'
+            $proto = if ($lm) { $lm } elseif ($pkg) { $pkg } else { '' }
+            $lp = & $g 'LogonProcessName'; if ($lp -and $proto -notmatch [regex]::Escape($lp)) { $proto = ("{0} / {1}" -f $proto, $lp).Trim(' /') }
+            $lt = & $g 'LogonType'
+            $code = & $g 'SubStatus'; if (-not $code -or $code -eq '0x0') { $code = & $g 'Status' }
+        }
+        4771 { $proto = 'Kerberos (pre-auth)'; $code = & $g 'Status' }
+        4776 { $proto = 'NTLM'; $code = & $g 'Status' }
+    }
+    $ltName = if ($lt -and $script:LBLogonTypeName.ContainsKey($lt)) { "$($script:LBLogonTypeName[$lt]) ($lt)" } elseif ($lt) { $lt } else { '' }
+    $reason = ''; if ($code) { $k = $code.ToLowerInvariant(); $reason = if ($script:LBFailReason.ContainsKey($k)) { "$($script:LBFailReason[$k]) ($code)" } else { $code } }
+    $proc = & $g 'ProcessName'; if ($proc) { $proc = ($proc -split '\\')[-1] }
+    [pscustomobject]@{ User = (& $g 'TargetUserName'); Domain = (& $g 'TargetDomainName'); Ip = $ip; Port = (& $g 'IpPort'); Ws = $ws
+                       Proto = $proto; LogonType = $ltName; Reason = $reason; Process = $proc }
+}
 function Invoke-DetectBruteForce {
     param($Config,[datetime]$Start)
     $f = @()
-    $th = $Config.Thresholds.LogonFailurePerWindow
+    $th = [int]$Config.Thresholds.LogonFailurePerWindow; if ($th -lt 1) { $th = 10 }
+    $spray = [int]$Config.Thresholds.PasswordSprayUsers; if ($spray -lt 2) { $spray = 5 }
+    # پنجرهٔ شمارش بلندتر از فاصلهٔ اجرا (۲ دقیقه)، تا حملهٔ آرام هم دیده شود؛ فقط وقتی تلاشِ تازه‌ای در این اجرا باشد هشدار می‌دهد
+    # count over a longer window than the 2-minute run so slow attacks are caught; alert only when this run saw a new attempt
+    $win = [int]$Config.Thresholds.LogonFailureWindowMinutes; if ($win -lt 1) { $win = 15 }
+    $from = (Get-Date).AddMinutes(-$win); if ($Start -lt $from) { $from = $Start }
     foreach ($s in (Get-LogBokSecuritySources -Config $Config)) {
         $log = if ($Config.CollectionMode -eq 'Collector') { $Config.ForwardedLog } else { 'Security' }
         # 4625 ورود ناموفق ، 4771 Kerberos pre-auth ناموفق ، 4776 اعتبارسنجی NTLM ناموفق
-        $evts = Get-LogBokEvents -LogName $log -Id @(4625,4771,4776) -StartTime $Start -ComputerName $s.Computer -Config $Config
-        $grp = @{}
+        $evts = Get-LogBokEvents -LogName $log -Id @(4625,4771,4776) -StartTime $from -ComputerName $s.Computer -Config $Config
+        $grp = @{}; $bySrc = @{}
         foreach ($e in $evts) {
             # 4776 برای اعتبارسنجیِ «موفق» هم ثبت می‌شود (Status=0x0) → فقط ناموفق‌ها
             if ($e.Id -eq 4776) {
                 $st = Get-LogBokEventField -Event $e -Name 'Status'
                 if (-not $st -or $st -eq '0x0') { continue }
             }
-            $user = Get-LogBokEventField -Event $e -Name 'TargetUserName'
-            $ip   = Get-LogBokEventField -Event $e -Name 'IpAddress'
-            if ($ip) { $ip = $ip -replace '^::ffff:','' }
-            if (-not $ip -or $ip -eq '-') { $ip = Get-LogBokEventField -Event $e -Name 'WorkstationName' }
-            if (-not $ip -or $ip -eq '-') { $ip = Get-LogBokEventField -Event $e -Name 'Workstation' }
-            $k = "$($e.MachineName)|$user|$ip"
-            if (-not $grp.ContainsKey($k)) { $grp[$k] = 0 }
-            $grp[$k]++
-        }
-        foreach ($k in $grp.Keys) {
-            if ($grp[$k] -ge $th) {
-                $p = $k -split '\|'
-                $f += New-Finding -Category 'BruteForce' -Severity 'Critical' -Machine $p[0] -Time (Get-Date) `
-                    -Title ("حملهٔ احتمالی ورود — {0} تلاش ناموفق | possible logon attack — {0} failed attempts" -f $grp[$k]) `
-                    -Details ("سیستم: {0}`nکاربر هدف: {1}`nمبدأ: {2}`nتعداد تلاش ناموفق در بازه: {3}" -f $p[0],$p[1],$p[2],$grp[$k]) `
-                    -Key ("BF|{0}" -f $k)
+            $i = Get-LBFailedLogonInfo -Event $e
+            if (-not $i.User -or $i.User -like '*$') { continue }   # حسابِ کامپیوتر | machine accounts
+            $src = if ($i.Ip -and $i.Ip -ne 'localhost') { $i.Ip } elseif ($i.Ws) { $i.Ws } else { 'local' }
+            $k = "$($e.MachineName)|$($i.User)|$src"
+            if (-not $grp.ContainsKey($k)) { $grp[$k] = @{ n = 0; first = $e.TimeCreated; last = $e.TimeCreated; newer = $false; old = 0; ws = @{}; ip = @{}; port = @{}; proto = @{}; lt = @{}; why = @{}; proc = @{} } }
+            $g = $grp[$k]; $g.n++
+            if ($e.TimeCreated -lt $g.first) { $g.first = $e.TimeCreated }; if ($e.TimeCreated -gt $g.last) { $g.last = $e.TimeCreated }
+            if ($e.TimeCreated -ge $Start) { $g.newer = $true } else { $g.old++ }
+            foreach ($pair in @(@('ws',$i.Ws), @('ip',$i.Ip), @('port',$i.Port), @('proto',$i.Proto), @('lt',$i.LogonType), @('why',$i.Reason), @('proc',$i.Process))) {
+                if ($pair[1] -and $pair[1] -ne '0') { $g[$pair[0]][[string]$pair[1]] = $true }
             }
+            $sk = "$($e.MachineName)|$src"
+            if (-not $bySrc.ContainsKey($sk)) { $bySrc[$sk] = @{ users = @{}; oldUsers = @{}; n = 0; newer = $false } }
+            $bySrc[$sk].users[$i.User] = $true; $bySrc[$sk].n++; if ($e.TimeCreated -ge $Start) { $bySrc[$sk].newer = $true } else { $bySrc[$sk].oldUsers[$i.User] = $true }
+        }
+        $j = { param($h) $v = @($h.Keys | Sort-Object | Select-Object -First 5) -join ', '; if (-not $v) { return '-' }; return $v }
+        foreach ($k in $grp.Keys) {
+            $g = $grp[$k]
+            # فقط بارِ اولی که از آستانه رد می‌شود (نه هر ۲ دقیقه) | only the run where the threshold is first crossed
+            if ($g.n -lt $th -or -not $g.newer -or $g.old -ge $th) { continue }
+            $p = $k -split '\|'
+            $det = ("سیستم | computer: {0}`nکاربر | user: {1}`nIP مبدأ | source IP: {2}`nپورت | port: {3}`nسیستمِ مبدأ | source workstation: {4}`nپروتکل | protocol: {5}`nنوعِ ورود | logon type: {6}`nدلیل | reason: {7}`nبرنامه | process: {8}`nتعداد در {9} دقیقه | attempts in {9} min: {10}`nاولین | first: {11}`nآخرین | last: {12}" -f `
+                $p[0], $p[1], (& $j $g.ip), (& $j $g.port), (& $j $g.ws), (& $j $g.proto), (& $j $g.lt), (& $j $g.why), (& $j $g.proc), $win, $g.n,
+                $g.first.ToString('yyyy-MM-dd HH:mm:ss'), $g.last.ToString('yyyy-MM-dd HH:mm:ss'))
+            $f += New-Finding -Category 'BruteForce' -Severity 'Critical' -Machine $p[0] -Time (Get-Date) `
+                -Title ("حملهٔ احتمالی ورود — {0} تلاشِ ناموفقِ {1} از {2} | possible logon attack — {0} failed attempts for {1} from {2}" -f $g.n, $p[1], $p[2]) `
+                -Details $det -Key ("BF|{0}|{1}" -f $k, $g.first.ToString('yyyyMMddHH'))
+        }
+        # پاشیدنِ رمز: یک مبدأ، چند کاربرِ مختلف | password spray: one source, many different users
+        foreach ($sk in $bySrc.Keys) {
+            $b = $bySrc[$sk]
+            if ($b.users.Count -lt $spray -or -not $b.newer -or $b.oldUsers.Count -ge $spray) { continue }
+            $p = $sk -split '\|'
+            $f += New-Finding -Category 'BruteForce' -Severity 'Critical' -Machine $p[0] -Time (Get-Date) `
+                -Title ("پاشیدنِ رمز (Password spray) — {0} کاربرِ مختلف از {1} | password spray — {0} different users from {1}" -f $b.users.Count, $p[1]) `
+                -Details ("سیستم | computer: {0}`nمبدأ | source: {1}`nکاربرها | users: {2}`nتلاشِ ناموفق در {3} دقیقه | failed attempts in {3} min: {4}" -f $p[0], $p[1], ((@($b.users.Keys | Sort-Object | Select-Object -First 15)) -join ', '), $win, $b.n) `
+                -Key ("SPRAY|{0}|{1}" -f $sk, (Get-Date).ToString('yyyyMMddHH'))
         }
     }
     return $f
