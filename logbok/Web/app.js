@@ -709,6 +709,37 @@
     }
   };
   for (var L20 in D20) { for (var k20 in D20[L20]) { D[L20][k20] = D20[L20][k20]; } }
+  var D21 = {
+    fa: {
+      ovLead2: 'وضعیتِ امنیتیِ شبکه و سیستم‌ها، به‌صورتِ زنده', severity: 'شدت', category: 'دسته',
+      dcIdentity: 'هویت و ورود (۷ روز)', dcLogonOk: 'ورودِ موفق', dcIdOk: 'ورودهای ناموفق در حدِ عادی است', dcIdBad: '{n} ورودِ ناموفق در ۷ روز — بررسی کنید',
+      dcEndpoints: 'سیستم‌ها', dcNoAgent: 'بدونِ ایجنت', dcEpOk: 'همهٔ سیستم‌ها در دسترس هستند', dcEpBad: '{n} سیستم قطع است',
+      dcLogin: 'هشدارهای ورود', dcAllAlerts: 'همهٔ هشدارها', dcLoginNone: 'در ۷ روزِ گذشته هشدارِ ورودی نبوده',
+      dcMail: 'امنیتِ ایمیل', dcThreats7: 'تهدید در ۷ روز', mlSpam: 'هرزنامه', mlPhish: 'فیشینگ', mlAuth: 'جعلِ فرستنده', mlQuar: 'قرنطینه',
+      dcMailOk: 'امنیتِ ایمیل فعال است', dcMailNoEx: 'سرورِ ایمیل (Exchange) روی این سرور نیست',
+      dcRisk: 'ریسک', lvHigh: 'بالا', lvMed: 'متوسط', lvLow: 'پایین', rkIdentity: 'کاربران', rkDevices: 'سیستم‌ها', rkNetwork: 'شبکه (IP)',
+      rkHigh: 'ریسک بالاست — پرخطرترین‌ها را بررسی کنید', rkOk: 'ریسک در محدودهٔ قابلِ‌قبول است',
+      dcTimeline: 'روندِ تهدیدها', dcIncident: 'پاسخ به رخداد', dcActive: 'فعال', dcResolved24: 'بسته‌شده (۲۴ ساعت)',
+      stDetected: 'شناسایی', stTriage: 'ارزیابی', stResolved: 'حل‌شده',
+      dcRecent: 'آخرین هشدارها', dcAlertLog: 'همهٔ رویدادها',
+      sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
+    },
+    en: {
+      ovLead2: 'Real-time security posture of your network and systems', severity: 'Severity', category: 'Category',
+      dcIdentity: 'Identity & sign-in (7 days)', dcLogonOk: 'successful', dcIdOk: 'Failed sign-ins are within normal range', dcIdBad: '{n} failed sign-ins in 7 days — review',
+      dcEndpoints: 'Computers', dcNoAgent: 'No agent', dcEpOk: 'All computers are reachable', dcEpBad: '{n} computers are down',
+      dcLogin: 'Login alerts', dcAllAlerts: 'View all alerts', dcLoginNone: 'No login alerts in the last 7 days',
+      dcMail: 'Email security', dcThreats7: 'threats · 7 days', mlSpam: 'Spam', mlPhish: 'Phishing', mlAuth: 'Spoofing', mlQuar: 'Quarantined',
+      dcMailOk: 'Email security is operating normally', dcMailNoEx: 'No Exchange server on this server',
+      dcRisk: 'Risk', lvHigh: 'High', lvMed: 'Medium', lvLow: 'Low', rkIdentity: 'Users', rkDevices: 'Computers', rkNetwork: 'Network (IPs)',
+      rkHigh: 'Risk is high — review the top entities', rkOk: 'Risk is within acceptable range',
+      dcTimeline: 'Threat timeline', dcIncident: 'Incident response', dcActive: 'Active', dcResolved24: 'Resolved (24h)',
+      stDetected: 'Detected', stTriage: 'Triage', stResolved: 'Resolved',
+      dcRecent: 'Recent alerts', dcAlertLog: 'View full alert log',
+      sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
+    }
+  };
+  for (var L21 in D21) { for (var k21 in D21[L21]) { D[L21][k21] = D21[L21][k21]; } }
   function titleCase(s) { return s.replace(/(^|[\s\/(\-–·])([a-z])/g, function (m, a, b) { return a + b.toUpperCase(); }); }
   function t(k) {
     var d = D[S.lang] || D.fa; var v = (k in d) ? d[k] : ((k in D.en) ? D.en[k] : k);
@@ -821,7 +852,9 @@
     alerts: 'M6 9.5a6 6 0 1 1 12 0c0 5.5 2 7.5 2 7.5H4s2-2 2-7.5zM10 20.5a2.2 2.2 0 0 0 4 0',
     settings: 'M4 6.5h9M17 6.5h3M15 4.5v4M4 12h3M11 12h9M9 10v4M4 17.5h11M19 17.5h1M17 15.5v4',
     sun: 'M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4',
-    moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z'
+    moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
+    search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20.5 20.5l-5-5',
+    logout: 'M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h10'
   };
   function ico(name) {
     var ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg');
@@ -840,7 +873,7 @@
         onclick: function () { applyTheme(o[0]); try { localStorage.setItem('logbok-theme', o[0]); } catch (e) { } } }, ico(o[1]), el('span', { text: t(o[0]) })));
     });
   }
-  function initTheme() { var th = null; try { th = localStorage.getItem('logbok-theme'); } catch (e) { } applyTheme(th === 'dark' || th === 'light' ? th : 'light'); }
+  function initTheme() { var th = null; try { th = localStorage.getItem('logbok-theme'); } catch (e) { } applyTheme(th === 'dark' || th === 'light' ? th : 'dark'); }
 
   // ------------------------------------------------------------------ nav
   // ---- navigation: few sections; related pages are tabs inside a section (no feature in two places)
@@ -958,27 +991,78 @@
   }
 
   // ================================================================== VIEWS
-  // ---------------- overview
+  // ---------------- overview (v5 dashboard: ring cards, timeline, incident response, recent alerts)
+  function svgEl(tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) n.setAttribute(k, attrs[k]); return n; }
+  function ring(pct, center, sub, color) {
+    pct = Math.max(0, Math.min(100, +pct || 0));
+    var C = 2 * Math.PI * 50, sv = svgEl('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' });
+    sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', 'class': 'rt', 'stroke-width': 9 }));
+    sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', stroke: color, 'stroke-width': 9, 'stroke-linecap': 'round',
+      'stroke-dasharray': (C * pct / 100).toFixed(1) + ' ' + C.toFixed(1), transform: 'rotate(-90 60 60)', 'class': 'rf' }));
+    return el('div', { cls: 'ring', style: '--rc:' + color }, sv, el('div', { cls: 'rc' }, el('b', { cls: 'num', text: center }), el('span', { text: sub })));
+  }
+  function dcard(icon, title, link, onLink) {
+    var c = el('div', { cls: 'dc' });
+    c.appendChild(el('div', { cls: 'dch' }, el('span', { cls: 'dci' }, ico(icon)), el('span', { cls: 'dct', text: title }),
+      link ? el('a', { cls: 'dcl', href: 'javascript:void 0', onclick: onLink, text: link }) : null));
+    var b = el('div', { cls: 'dcb' }); c.appendChild(b); c._b = b; return c;
+  }
+  function lrow(color, label, value, go) { return el('div', { cls: 'lrow' + (go ? ' go' : ''), onclick: go || null }, el('i', { style: 'background:' + color }), el('span', { cls: 'll', text: label }), el('b', { cls: 'num', text: String(value) })); }
+  function dfoot(ok, text) { return el('div', { cls: 'dfoot ' + (ok ? 'ok' : 'bad') }, el('span', { cls: 'fi', text: ok ? '✓' : '!' }), el('span', { text: text })); }
+  function lvl(score) { return score >= 60 ? ['High', 'var(--crit)', t('lvHigh')] : (score >= 25 ? ['Medium', 'var(--warn)', t('lvMed')] : ['Low', 'var(--ok)', t('lvLow')]); }
+  function hhmm(s) { s = String(s || ''); var d = s.slice(0, 10), today = new Date(), td = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2); return (d === td ? '' : s.slice(5, 10) + ' ') + s.slice(11, 16); }
+
   function vOverview() {
-    var v = page(t('overview'), t('ovLead')); v.appendChild(spinner());
+    var v = clear($('view'));
+    v.appendChild(spinner());
     api('/api/summary?hours=' + S.ev.hours).then(function (s) {
-      v = page(t('overview'), t('ovLead'));
-      badges.events = { n: s.crit, c: 'var(--crit)' }; badges.incidents = { n: s.incidentsOpen, c: 'var(--warn)' }; badges.guard = { n: s.guard.blocked, c: 'var(--crit)' }; badges.connections = { n: s.conn.down, c: 'var(--crit)' };
-      renderNav();
+      v = clear($('view'));
+      badges.events = { n: s.crit, c: 'var(--crit)' }; badges.incidents = { n: s.incidentsOpen, c: 'var(--crit)' }; badges.guard = { n: s.guard.blocked, c: 'var(--crit)' }; badges.connections = { n: s.conn.down, c: 'var(--crit)' };
+      renderNav(); setRailStatus(s);
+      // ---- header: title + severity counters
+      function sevChip(cls, n, label, sev) {
+        return el('button', { type: 'button', cls: 'sevc ' + cls, onclick: function () { S.ev.sev = '=' + sev; S.ev.cat = ''; S.ev.skip = 0; go('events'); } },
+          el('span', { cls: 'si', text: cls === 'c' ? '!' : (cls === 'w' ? '▲' : 'i') }), el('span', null, el('b', { cls: 'num', text: String(n || 0) }), el('small', { text: label })), el('span', { cls: 'chev', text: S.lang === 'en' ? '›' : '‹' }));
+      }
+      v.appendChild(el('div', { cls: 'ovh' },
+        el('div', { cls: 'ovt' }, el('h1', { text: t('overview') }), el('p', { cls: 'ovsub', text: t('ovLead2') })),
+        el('div', { cls: 'sevs' }, sevChip('c', s.crit, t('crit'), 'Critical'), sevChip('w', s.warn, t('warn'), 'Warning'), sevChip('i', s.info, t('info'), 'Info'))));
       var lic = s.license;
       if (!lic.valid) v.appendChild(el('div', { cls: 'flash err', text: t('license') + ': ' + (lic.reason || t('invalid')) }));
-      v.appendChild(watchStrip(s));
-      function kpi(val, label, color, go) { return el('div', { cls: 'kpi' + (go ? ' go' : ''), onclick: go || null, style: color ? '--kc:' + color : null }, el('div', { cls: 'v num', style: color ? 'color:' + color : null, text: val }), el('div', { cls: 'l', text: label })); }
-      v.appendChild(el('div', { cls: 'kpis' },
-        kpi(s.crit, t('crit') + ' · ' + s.hours + 'h', 'var(--crit)', function () { S.ev.sev = '=Critical'; S.ev.skip = 0; go('events'); }),
-        kpi(s.warn, t('warn'), 'var(--warn)', function () { S.ev.sev = '=Warning'; S.ev.skip = 0; go('events'); }),
-        kpi(s.info, t('info'), 'var(--info)', function () { S.ev.sev = '=Info'; S.ev.skip = 0; go('events'); }),
-        kpi(s.incidentsOpen, t('openInc'), 'var(--warn)', function () { go('incidents'); }),
-        kpi(s.sessionsLive || 0, t('ssLiveNow'), 'var(--mint)', function () { go('sessions'); }),
-        kpi(s.guard.blocked, t('blockedIps'), 'var(--crit)', function () { go('endpoints/guard'); }),
-        kpi(s.sources, t('srcCount'), null, function () { go('computers'); }),
-        kpi(s.conn.down, t('connDown'), s.conn.down ? 'var(--crit)' : 'var(--mint)', function () { go('connections'); }),
-        kpi(s.jobsOn + ' / ' + s.jobsTotal, t('jobsOn'), 'var(--mint)', function () { go('jobs'); })));
+
+      // ---- row 1: identity · computers · login alerts · email
+      var r1 = el('div', { cls: 'dgrid g4' }); v.appendChild(r1);
+      var cId = dcard('users', t('dcIdentity'), null); r1.appendChild(cId); cId._b.appendChild(spinner());
+      var tg = s.conn.targets || 0, dn = s.conn.down || 0, wn = s.conn.warn || 0, okN = Math.max(0, tg - dn - wn), noAg = Math.max(0, tg - ((s.agents && s.agents.active) || 0));
+      var cEp = dcard('computers', t('dcEndpoints'), t('all'), function () { go('computers'); }); r1.appendChild(cEp);
+      cEp._b.appendChild(el('div', { cls: 'rwrap' }, ring(tg ? okN * 100 / tg : 0, String(okN), t('connected'), 'var(--mint)'),
+        el('div', { cls: 'legend' }, lrow('var(--ok)', t('connected'), okN), lrow('var(--warn)', t('warning'), wn), lrow('var(--crit)', t('down'), dn, dn ? function () { go('connections'); } : null), lrow('var(--muted)', t('dcNoAgent'), noAg, noAg ? function () { go('deploy'); } : null))));
+      cEp.appendChild(dfoot(!dn, dn ? t('dcEpBad').replace('{n}', dn) : t('dcEpOk')));
+      var cLa = dcard('alerts', t('dcLogin'), t('dcAllAlerts'), function () { S.ev.cat = 'BruteForce,Guard,ActiveDirectory,ADAttack'; S.ev.sev = ''; S.ev.skip = 0; go('events'); }); r1.appendChild(cLa); cLa._b.appendChild(spinner());
+      var cMl = dcard('mailsec', t('dcMail'), t('all'), function () { go('mailsec'); }); r1.appendChild(cMl); cMl._b.appendChild(spinner());
+
+      // ---- row 2: risk · threat timeline · incident response
+      var r2 = el('div', { cls: 'dgrid g3' }); v.appendChild(r2);
+      var rk = s.risk || { score: 0 }, L = lvl(rk.score || 0);
+      var cRk = dcard('protect', t('dcRisk')); r2.appendChild(cRk);
+      function rline(lab, sc) { var l = lvl(sc || 0); return el('div', { cls: 'rkl' }, el('span', { text: lab }), el('b', { style: 'color:' + l[1], text: l[2] }), el('i', { style: 'background:' + l[1] })); }
+      cRk._b.appendChild(el('div', { cls: 'rwrap' }, ring(rk.score || 0, String(rk.score || 0), L[2], L[1]),
+        el('div', { cls: 'legend' }, rline(t('rkIdentity'), rk.identity), rline(t('rkDevices'), rk.devices), rline(t('rkNetwork'), rk.network))));
+      cRk.appendChild(dfoot(L[0] !== 'High', L[0] === 'High' ? t('rkHigh') : t('rkOk')));
+      var cTl = dcard('investigate', t('dcTimeline'), t('h24')); cTl.className += ' wide'; r2.appendChild(cTl);
+      cTl._b.appendChild(watchStrip(s));
+      var is = s.incStat || { open: 0, investigating: 0, closed24: 0 }, act = (is.open || 0) + (is.investigating || 0);
+      var cIr = dcard('incidents', t('dcIncident'), t('all'), function () { go('incidents'); }); r2.appendChild(cIr);
+      cIr._b.appendChild(el('div', { cls: 'rwrap' }, ring(act ? 100 : 0, String(act), t('dcActive'), act ? 'var(--crit)' : 'var(--ok)'),
+        el('div', { cls: 'legend' }, lrow('var(--crit)', t('stOpen'), is.open || 0), lrow('var(--warn)', t('stInv'), is.investigating || 0), lrow('var(--ok)', t('dcResolved24'), is.closed24 || 0))));
+      var stage = act ? (is.investigating ? 3 : 2) : 4, steps = [t('stDetected'), t('stTriage'), t('stInv'), t('stResolved')], sp = el('div', { cls: 'stepper' });
+      steps.forEach(function (n, i) { sp.appendChild(el('div', { cls: 'stp' + (i < stage ? ' on' : '') }, el('i'), el('span', { text: n }))); });
+      cIr.appendChild(sp);
+
+      // ---- row 3: recent alerts
+      var cRa = dcard('alerts', t('dcRecent'), t('dcAlertLog'), function () { S.ev.sev = ''; S.ev.cat = ''; S.ev.skip = 0; go('events'); }); cRa.className += ' full'; v.appendChild(cRa); cRa._b.appendChild(spinner());
+
+      // ---- details (tabs): categories · Active Directory · system health
       var tiles = el('div', { cls: 'tiles' });
       arr(s.categories).forEach(function (c) {
         var z = !c.n;
@@ -986,48 +1070,85 @@
           el('span', { cls: 'dot', style: 'background:' + (c.crit ? 'var(--crit)' : (c.n ? 'var(--warn)' : 'var(--line)')) }), el('div', { cls: 'tl', text: c.title }), el('div', { cls: 'tv num', text: c.n })));
       });
       var cc = card(t('categories')); cc.appendChild(tiles); v.appendChild(cc);
-      var latest = arr(s.latest).map(function (f) { return el('tr', { cls: 'clk', onclick: function () { openFinding(f.id); } }, el('td', { cls: 'num muted nw', text: f.time.slice(5, 16) }), el('td', { text: f.host }), el('td', null, f.title, f.mitre ? el('span', { cls: 'mitre', text: f.mitre }) : null)); });
-      if (!latest.length) latest = [emptyRow(3, t('noEvents'))];
-      var c1 = card(t('latestCrit'), btn(t('all'), function () { S.ev.sev = '=Critical'; S.ev.cat = ''; S.ev.skip = 0; go('events'); }, 'sm')); c1.appendChild(table([t('time'), t('host'), t('title')], latest));
-      var max = 1; arr(s.topHosts).forEach(function (h) { if (h.n > max) max = h.n; });
-      var hr = arr(s.topHosts).map(function (h) { return el('tr', { cls: 'clk', onclick: function () { S.ev.host = h.host; S.ev.cat = ''; S.ev.sev = ''; S.ev.skip = 0; go('events'); } }, el('td', { text: h.host }), el('td', { style: 'width:45%' }, el('div', { cls: 'bar' }, el('i', { style: 'width:' + Math.round(h.n * 100 / max) + '%' }))), el('td', { cls: 'num', text: h.n })); });
-      if (!hr.length) hr = [emptyRow(3)];
-      var c2 = card(t('topHosts')); c2.appendChild(table([t('host'), '', t('count')], hr));
-      v.appendChild(el('div', { cls: 'cols3' }, c1, c2));
+      var adc = card(t('adDashTitle')); adc.appendChild(spinner()); v.appendChild(adc);
       var hc = card(t('health'));
+      function kpi(val, label, color, gofn) { return el('div', { cls: 'kpi' + (gofn ? ' go' : ''), onclick: gofn || null, style: color ? '--kc:' + color : null }, el('div', { cls: 'v num', style: color ? 'color:' + color : null, text: val }), el('div', { cls: 'l', text: label })); }
+      hc.appendChild(el('div', { cls: 'kpis' },
+        kpi(s.sessionsLive || 0, t('ssLiveNow'), 'var(--mint)', function () { go('sessions'); }),
+        kpi(s.guard.blocked, t('blockedIps'), 'var(--crit)', function () { go('endpoints/guard'); }),
+        kpi(s.sources, t('srcCount'), null, function () { go('computers'); }),
+        kpi(s.jobsOn + ' / ' + s.jobsTotal, t('jobsOn'), 'var(--mint)', function () { go('jobs'); })));
       hc.appendChild(el('div', { cls: 'kv' },
-        el('div', { cls: 'k', text: t('license') }), el('div', null, lic.valid ? pill('ok', t('valid') + (lic.permanent ? ' · ' + t('permanent') : '')) : pill('bad', t('invalid')), ' ', lic.company || '', lic.device ? el('span', { cls: 'muted mono', text: '  ' + lic.device }) : null),
+        el('div', { cls: 'k', text: t('license') }), el('div', null, lic.valid ? pill('ok', t('valid') + (lic.permanent ? ' · ' + t('permanent') : (lic.expiry ? ' · ' + lic.expiry : ''))) : pill('bad', t('invalid')), ' ', lic.company || '', lic.device ? el('span', { cls: 'muted mono', text: '  ' + lic.device }) : null),
         el('div', { cls: 'k', text: t('connections') }), el('div', null, s.conn.targets + ' · ', s.conn.down ? pill('Fail', s.conn.down + ' ' + t('down')) : pill('OK', t('connected'))),
         el('div', { cls: 'k', text: t('guard') }), el('div', { text: s.guard.blocked + ' ' + t('blockedNow') + ' · ' + s.guard.rules + ' ' + t('rules') }),
         el('div', { cls: 'k', text: t('jobs') }), el('div', null, s.jobsOn + ' / ' + s.jobsTotal, s.jobsBad ? el('span', { style: 'color:var(--warn)', text: '  ⚠ ' + s.jobsBad }) : null)));
       v.appendChild(hc);
-      // AD dashboard tiles (ADAuditPlus-style)
-      var adc = card(t('adDashTitle')); adc.appendChild(spinner()); v.appendChild(adc);
-      tabify(v, 'overview', [['sum', 'tbSummary', [v.querySelector(':scope > .kpis'), v.querySelector(':scope > .cols3')]], ['cat', 'tbCategories', [cc]], ['ad', 'tbAD', [adc]], ['health', 'tbHealth', [hc]]]);
+      tabify(v, 'overview2', [['cat', 'tbCategories', [cc]], ['ad', 'tbAD', [adc]], ['health', 'tbHealth', [hc]]]);
+
+      // ---- async: recent alerts
+      api('/api/findings?hours=' + S.ev.hours + '&max=6').then(function (r) {
+        clear(cRa._b);
+        var rows = arr(r.items).map(function (f) {
+          return el('tr', { cls: 'clk', onclick: function () { openFinding(f.id); } }, el('td', { cls: 'num muted nw', text: hhmm(f.time) }),
+            el('td', { cls: 'nw' }, sevDot(f.sev), el('span', { cls: 'sevt ' + f.sev, text: sevName(f.sev) })), el('td', { cls: 'muted nw', text: f.catTitle || f.cat }),
+            el('td', null, f.title, f.mitre ? el('span', { cls: 'mitre', text: f.mitre }) : null), el('td', { cls: 'nw', text: f.host }));
+        });
+        if (!rows.length) rows = [emptyRow(5, t('noEvents'))];
+        cRa._b.appendChild(table([t('time'), t('severity'), t('category'), t('title'), t('host')], rows));
+      }).catch(function () { clear(cRa._b); cRa._b.appendChild(el('div', { cls: 'empty', text: t('noEvents') })); });
+      // ---- async: login alerts
+      api('/api/findings?hours=168&max=4&cat=BruteForce,Guard,ActiveDirectory,ADAttack').then(function (r) {
+        clear(cLa._b);
+        var it = arr(r.items);
+        if (!it.length) { cLa._b.appendChild(el('div', { cls: 'dempty' }, el('span', { cls: 'fi ok', text: '✓' }), t('dcLoginNone'))); return; }
+        it.forEach(function (f) {
+          cLa._b.appendChild(el('div', { cls: 'arow', onclick: function () { openFinding(f.id); } },
+            el('span', { cls: 'ai ' + f.sev, text: f.sev === 'Critical' ? '!' : (f.sev === 'Warning' ? '!' : 'i') }),
+            el('div', { cls: 'at' }, el('div', { cls: 'a1', text: f.title }), el('div', { cls: 'a2', text: f.host })),
+            el('div', { cls: 'aw' }, el('div', { cls: 'num', text: hhmm(f.time) }), el('div', { cls: 'sevt ' + f.sev, text: sevName(f.sev) }))));
+        });
+      }).catch(function () { clear(cLa._b); cLa._b.appendChild(el('div', { cls: 'dempty', text: t('noEvents') })); });
+      // ---- async: email security
+      api('/api/mail/overview?days=7').then(function (m) {
+        clear(cMl._b);
+        var bc = m.byCat || {}, thr = (m.total || 0), q = m.quarantined || 0;
+        cMl._b.appendChild(el('div', { cls: 'rwrap' }, ring(thr ? 100 : 100, String(thr), t('dcThreats7'), thr ? 'var(--warn)' : 'var(--ok)'),
+          el('div', { cls: 'legend' }, lrow('var(--warn)', t('mlSpam'), bc.MailSpam || 0), lrow('var(--crit)', t('mlPhish'), bc.MailPhish || 0), lrow('var(--info)', t('mlAuth'), bc.MailAuth || 0), lrow('var(--muted)', t('mlQuar'), q))));
+        cMl.appendChild(dfoot(true, m.exchange ? t('dcMailOk') : t('dcMailNoEx')));
+      }).catch(function () { clear(cMl._b); cMl._b.appendChild(el('div', { cls: 'dempty', text: t('dcMailNoEx') })); });
+      // ---- async: identity (Active Directory, 7 days) + AD details tab
       api('/api/ad/dashboard?days=7').then(function (A) {
+        clear(cId._b);
+        var ok = A.totalLogon || 0, bad = A.totalFail || 0, ac = A.account || {}, pc = (ok + bad) ? Math.round(ok * 1000 / (ok + bad)) / 10 : 100;
+        cId._b.appendChild(el('div', { cls: 'rwrap' }, ring(pc, pc + '%', t('dcLogonOk'), 'var(--mint)'),
+          el('div', { cls: 'legend' }, lrow('var(--ok)', t('adLogonOk'), ok), lrow('var(--crit)', t('adLogonFail'), bad, bad ? function () { S.ev.cat = 'BruteForce,ActiveDirectory'; S.ev.sev = ''; S.ev.skip = 0; go('events'); } : null), lrow('var(--info)', t('adAcctCreated'), ac.created || 0), lrow('var(--warn)', t('adAcctModified'), ac.modified || 0))));
+        cId.appendChild(dfoot(bad < 50, bad < 50 ? t('dcIdOk') : t('dcIdBad').replace('{n}', bad)));
         clear(adc); adc.appendChild(el('h3', { text: t('adDash7d') }));
         function stt(val, lab, col) { return el('div', { cls: 'kpi', style: col ? '--kc:' + col : null }, el('div', { cls: 'v num', style: col ? 'color:' + col : null, text: String(val) }), el('div', { cls: 'l', text: lab })); }
-        var ac = A.account || {};
-        adc.appendChild(el('div', { cls: 'kpis' },
-          stt(A.totalFail || 0, t('adLogonFail'), 'var(--crit)'),
-          stt(A.totalLogon || 0, t('adLogonOk')),
-          stt(ac.created || 0, t('adAcctCreated')),
-          stt(ac.modified || 0, t('adAcctModified'), 'var(--warn)'),
-          stt(ac.deleted || 0, t('adAcctDeleted'), 'var(--crit)'),
-          stt(ac.groups || 0, t('adGroupChg'), 'var(--warn)'),
-          stt(ac.gpo || 0, t('adGpoChg'), 'var(--warn)')));
-        var tf = arr(A.topFail);
-        var tfc = el('div'); tfc.appendChild(el('h4', { text: t('adTopFail') }));
-        if (tf.length) { var tb = el('tbody'); tf.forEach(function (x) { tb.appendChild(el('tr', null, el('td', { text: x.user }), el('td', { cls: 'num', text: String(x.n) }))); }); tfc.appendChild(el('div', { cls: 'tw' }, el('table', null, el('thead', null, el('tr', null, el('th', { text: t('adUser') }), el('th', { text: t('adCount') }))), tb))); } else { tfc.appendChild(el('div', { cls: 'muted', text: t('adNoItems') })); }
-        var bh = arr(A.byHour); var mx = 1; bh.forEach(function (n) { if (n > mx) mx = n; });
-        var chart = el('div', { style: 'display:flex;align-items:flex-end;gap:2px;height:70px;margin-top:6px' });
-        bh.forEach(function (n, h) { chart.appendChild(el('div', { title: h + ':00 — ' + n, style: 'flex:1;background:var(--accent,#4FD1B5);height:' + Math.round((n / mx) * 100) + '%;min-height:1px;border-radius:2px 2px 0 0' })); });
+        adc.appendChild(el('div', { cls: 'kpis' }, stt(bad, t('adLogonFail'), 'var(--crit)'), stt(ok, t('adLogonOk')), stt(ac.created || 0, t('adAcctCreated')), stt(ac.modified || 0, t('adAcctModified'), 'var(--warn)'), stt(ac.deleted || 0, t('adAcctDeleted'), 'var(--crit)'), stt(ac.groups || 0, t('adGroupChg'), 'var(--warn)'), stt(ac.gpo || 0, t('adGpoChg'), 'var(--warn)')));
+        var tf = arr(A.topFail), tfc = el('div'); tfc.appendChild(el('h4', { text: t('adTopFail') }));
+        if (tf.length) { var tb = el('tbody'); tf.forEach(function (x) { tb.appendChild(el('tr', null, el('td', { text: x.user }), el('td', { cls: 'num', text: String(x.n) }))); }); tfc.appendChild(el('div', { cls: 'tw' }, el('table', null, el('thead', null, el('tr', null, el('th', { text: t('adUser') }), el('th', { text: t('adCount') }))), tb))); } else { tfc.appendChild(el('div', { cls: 'muted', text: t('none') })); }
+        var bh = arr(A.byHour), mx = 1; bh.forEach(function (n) { if (n > mx) mx = n; });
+        var chart = el('div', { cls: 'hbars' }); bh.forEach(function (n, h) { chart.appendChild(el('div', { title: h + ':00 — ' + n, style: 'height:' + Math.round((n / mx) * 100) + '%' })); });
         var hc2 = el('div'); hc2.appendChild(el('h4', { text: t('adByHour') })); hc2.appendChild(chart);
-        var ub = arr(A.uba); var uc2 = el('div'); uc2.appendChild(el('h4', { text: t('adRecentUba') }));
-        if (ub.length) { var ul2 = el('div'); ub.forEach(function (x) { ul2.appendChild(el('div', { cls: 'muted', style: 'padding:3px 0;border-bottom:1px solid var(--line,#2226)', text: (x.title || '') })); }); uc2.appendChild(ul2); } else { uc2.appendChild(el('div', { cls: 'muted', text: t('adLearning') })); }
+        var ub = arr(A.uba), uc2 = el('div'); uc2.appendChild(el('h4', { text: t('adRecentUba') }));
+        if (ub.length) { ub.forEach(function (x) { uc2.appendChild(el('div', { cls: 'muted', style: 'padding:3px 0;border-bottom:1px solid var(--line)', text: (x.title || '') })); }); } else { uc2.appendChild(el('div', { cls: 'muted', text: t('adLearning') })); }
         adc.appendChild(el('div', { cls: 'cols3' }, tfc, hc2, uc2));
-      }).catch(function () { clear(adc); adc.appendChild(el('div', { cls: 'muted', text: t('adNoData') })); });
+      }).catch(function () {
+        clear(cId._b); cId._b.appendChild(el('div', { cls: 'dempty', text: t('adNoData') }));
+        clear(adc); adc.appendChild(el('div', { cls: 'muted', text: t('adNoData') }));
+      });
     }).catch(fail);
+  }
+  // rail footer: system status + version (green = engine running with a valid license)
+  function setRailStatus(s) {
+    var b = $('sysStat'); if (!b) return;
+    var ok = !s || (s.license && s.license.valid && !(s.conn && s.conn.down > 0 && s.conn.down === s.conn.targets));
+    var lic = s && s.license && !s.license.valid;
+    clear(b); b.className = 'sys ' + (lic ? 'bad' : (ok ? 'ok' : 'warn'));
+    b.appendChild(el('div', { cls: 'sl' }, el('i'), el('span', { text: lic ? t('sysLic') : t('sysOnline') })));
+    b.appendChild(el('div', { cls: 'sv num', text: 'v' + ((S.meta && S.meta.version) || '') }));
   }
 
   // ---------------- events
@@ -3838,11 +3959,11 @@
     var isSetup = !!m.needSetup;
     function shell() { var c = el('div'); c.style.cssText = 'background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 24px;box-shadow:0 24px 70px -24px rgba(0,0,0,.55)'; return c; }
     function lbl(txt, mar) { return el('label', { text: txt, style: 'display:block;font-size:12px;opacity:.75;margin:' + (mar || '10px 0 4px') }); }
-    function remSel() { var s = el('select'); s.style.cssText = 'width:100%'; [['0', 'remThis'], ['30', 'rem30'], ['180', 'rem180'], ['360', 'rem360']].forEach(function (o) { s.appendChild(el('option', { value: o[0], text: t(o[1]) })); }); return s; }
+    function remSel() { var s = el('select'); s.style.cssText = 'width:100%'; [['0', 'remThis'], ['30', 'rem30'], ['180', 'rem180'], ['365', 'rem360']].forEach(function (o) { s.appendChild(el('option', { value: o[0], text: t(o[1]) })); }); return s; }
 
     function step1() {
       clear(host); var c = shell();
-      c.appendChild(el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:.5px' }));
+      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=5', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
       c.appendChild(el('div', { text: isSetup ? t('loginSetupLead') : t('loginLead'), style: 'opacity:.7;margin:4px 0 18px;font-size:13px;line-height:1.7' }));
       var user = inp(t('loginUser'), 'text', ''), pass = inp(t('loginPass'), 'password', ''), pass2 = null, rem = null;
       user.style.cssText = 'width:100%'; pass.style.cssText = 'width:100%';
@@ -3965,11 +4086,17 @@
       }
       S.meta = m; S.lang = m.lang || 'fa'; S.token = m.token; S.cats = arr(m.categories);
       document.documentElement.lang = (S.lang === 'en') ? 'en' : 'fa'; document.documentElement.dir = S.lang === 'en' ? 'ltr' : 'rtl';
-      $('brandSub').textContent = S.lang === 'en' ? 'Security Package' : 'لاگ‌بوک · بستهٔ امنیتی';
+      $('brandSub').textContent = S.lang === 'en' ? 'Security Package' : 'بستهٔ امنیتی';
       var wu = String(m.user || '').replace(/^.*\\/, ''), wb = clear($('who'));
       wb.appendChild(el('span', { cls: 'av', text: (wu.charAt(0) || '?').toUpperCase() }));
-      wb.appendChild(el('div', null, el('div', { cls: 'wn', text: wu || t('userLbl') }), el('div', { cls: 'wv', text: (m.host ? m.host + ' · ' : '') + 'v' + m.version })));
-      if (m.loginOn) { wb.appendChild(el('button', { type: 'button', cls: 'btn sm', text: t('logout'), title: t('logout'), style: 'margin-inline-start:auto', onclick: doLogout })); }
+      wb.appendChild(el('div', { cls: 'wtx' }, el('div', { cls: 'wn', text: wu || t('userLbl') }), el('div', { cls: 'wv', text: m.host || '' })));
+      if (m.loginOn) { wb.appendChild(el('button', { type: 'button', cls: 'icb', title: t('logout'), 'aria-label': t('logout'), onclick: doLogout }, ico('logout'))); }
+      setRailStatus(null);
+      var gs = $('gsearch');
+      if (gs) {
+        gs.placeholder = t('searchPh');
+        gs.addEventListener('keydown', function (e) { if (e.key === 'Enter' && gs.value.trim()) { S.logs.q = gs.value.trim(); S.logs.host = ''; S.logs.user = ''; S.logs.id = ''; gs.value = ''; go('logs'); } });
+      }
       applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
       $('liveTxt').textContent = t('updated') + ' ' + new Date().toTimeString().slice(0, 5);
       window.addEventListener('hashchange', route);
