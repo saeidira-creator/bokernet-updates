@@ -226,9 +226,10 @@ function Invoke-LBLoginSetup {
         $u = [string]$body.user; $p = [string]$body.password
         Add-LBWebUser -StateDir $Sd -Name $u -Password $p -Role 'admin' | Out-Null
         $ip = ''; try { $ip = [string]$Req.RemoteEndPoint.Address } catch { }
-        $sid = New-LBWebSession -StateDir $Sd -User $u.Trim() -Role 'admin' -Via 'console' -Config $Cfg -Ip $ip
+        $rdS = 0; try { $rdS = [int]$body.rememberDays } catch { }
+        $sid = New-LBWebSession -StateDir $Sd -User $u.Trim() -Role 'admin' -Via 'console' -Config $Cfg -Ip $ip -Days $rdS
         $ac = Get-LBAuthConfig $Cfg
-        $ck = ('lbsid={0}; Path=/; HttpOnly; SameSite=Strict; Max-Age={1}' -f $sid, ($ac.SessionHours * 3600))
+        $ck = ('lbsid={0}; Path=/; HttpOnly; SameSite=Strict; Max-Age={1}' -f $sid, $(if ($rdS -gt 0) { $rdS * 86400 } else { $ac.SessionHours * 3600 }))
         try { Write-LBWebAudit -User $u -Message 'console admin account created (first-run setup)' } catch { }
         Send-LBJson -Ctx $Ctx -Obj @{ ok = $true; user = $u.Trim(); role = 'admin' } -Cookie $ck
     } catch { Send-LBJson -Ctx $Ctx -Obj @{ error = $_.Exception.Message } -Status 400 }
@@ -635,7 +636,20 @@ function Invoke-LBWebApi {
         $okCodes = @(0, 267009, 267011, 2147946720)
         $jobsBad = @($jobs | Where-Object { $_.Enabled -and ($_.State -eq 'Missing' -or ($_.LastCode -and ($okCodes -notcontains [long]$_.LastCode))) }).Count
         $srcN = @(Get-LBTargetList -StateDir $sd).Count
+        # --- overview cards: incidents by stage, risk score, agents (cheap; all local state) ---
+        $incAll = @(); try { $incAll = @(Get-LBIncidents -Config $cfg) } catch { }
+        $d24 = (Get-Date).AddHours(-24); $cl24 = 0
+        foreach ($i in $incAll) { if ([string]$i.Status -eq 'Closed') { $ls = ConvertTo-LBDate ([string]$i.LastSeen); if ($ls -and $ls -ge $d24) { $cl24++ } } }
+        $incStat = [ordered]@{ open = @($incAll | Where-Object { [string]$_.Status -eq 'Open' -or -not $_.Status }).Count; investigating = @($incAll | Where-Object { [string]$_.Status -eq 'Investigating' }).Count; closed24 = $cl24 }
+        $rk = @{}; try { $rk = Get-LBRisk -Config $cfg } catch { }
+        $rmax = @{ user = 0.0; host = 0.0; ip = 0.0 }; $rtop = @()
+        foreach ($k in @($rk.Keys)) { $pf = ([string]$k -split ':', 2)[0]; if ($rmax.ContainsKey($pf) -and [double]$rk[$k] -gt $rmax[$pf]) { $rmax[$pf] = [double]$rk[$k] } }
+        $rtop = @($rk.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 5 | ForEach-Object { [ordered]@{ ent = [string]$_.Key; score = [int][math]::Min(100, [math]::Round([double]$_.Value)) } })
+        $rscore = [int][math]::Min(100, [math]::Round(($rmax.Values | Measure-Object -Maximum).Maximum))
+        $agAct = 0; try { $ak = Get-LBAgentKeys -StateDir $sd; foreach ($v in @($ak.Values)) { if ([string]$v.Status -eq 'active') { $agAct++ } } } catch { }
         return [ordered]@{
+            incStat=$incStat; agents=[ordered]@{ active=$agAct }
+            risk=[ordered]@{ score=$rscore; identity=[int][math]::Min(100, [math]::Round($rmax.user)); devices=[int][math]::Min(100, [math]::Round($rmax.host)); network=[int][math]::Min(100, [math]::Round($rmax.ip)); top=$rtop }
             hours=$hours; total=$st.Total; crit=$st.BySeverity.Critical; warn=$st.BySeverity.Warning; info=$st.BySeverity.Info
             categories=$cats; topHosts=$hostsTop; timeline=@($st.Timeline)
             latest=@($(foreach ($x in $st.Latest) { ConvertTo-LBWebFinding -r $x -Lang $lang -Notes $ntsS }))
