@@ -236,9 +236,16 @@ function Get-LBWebSession {
     $h = Read-LBSessions $StateDir; $e = $h[$Id]; if (-not $e) { return $null }
     $ex = ConvertTo-LBDate ([string]$e.expires); if (-not $ex -or $ex -lt (Get-Date)) { $h.Remove($Id); Save-LBSessions $StateDir $h; return $null }
     if ($Slide) {
+        # «مرا به‌خاطر بسپار» (days>0) نباید با هر درخواست به ۱۲ ساعت کوتاه شود — این باگ باعث می‌شد ۳۶۵ روز کار نکند
+        # a "keep me signed in" session (days>0) must not be cut back to SessionHours on every request (that was the bug)
         $ac = Get-LBAuthConfig $Config
-        $e.expires = (Get-Date).AddHours($ac.SessionHours).ToString('o', [Globalization.CultureInfo]::InvariantCulture)
-        $h[$Id] = $e; try { Save-LBSessions $StateDir $h } catch { }
+        $dd = 0; try { $dd = [int]$e.days } catch { }
+        $newEx = if ($dd -gt 0) { (Get-Date).AddDays([math]::Min(730, $dd)) } else { (Get-Date).AddHours($ac.SessionHours) }
+        # write at most once an hour per session (fewer writes, fewer races between parallel requests)
+        if ($newEx -gt $ex.AddHours(1)) {
+            $e.expires = $newEx.ToString('o', [Globalization.CultureInfo]::InvariantCulture)
+            $h[$Id] = $e; try { Save-LBSessions $StateDir $h } catch { }
+        }
     }
     return $e
 }
