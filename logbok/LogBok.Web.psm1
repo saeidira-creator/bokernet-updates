@@ -667,7 +667,24 @@ function Invoke-LBWebApi {
         $cat = Get-LBQ $Ctx 'cat'; $cats = if ($cat) { @($cat -split ',') } else { @() }
         $res = Get-LBFindings -Config $cfg -From $rg.From -To $rg.To -Category $cats -Severity (Get-LBQ $Ctx 'sev') -HostName (Get-LBQ $Ctx 'host') -Text (Get-LBQ $Ctx 'q') -Skip ([int](Get-LBQ $Ctx 'skip' 0)) -Max ([math]::Min(500, [int](Get-LBQ $Ctx 'max' 100)))
         $nts = Get-LBNotes -StateDir $sd
-        return [ordered]@{ total=$res.Total; items=@($res.Items | ForEach-Object { ConvertTo-LBWebFinding -r $_ -Lang $lang -Notes $nts }) }
+        $items = @($res.Items | ForEach-Object { ConvertTo-LBWebFinding -r $_ -Lang $lang -Notes $nts })
+        if ((Get-LBQ $Ctx 'st') -eq '1') {
+            # status of each alert = state of the incident that holds it (incident key: computer + category)
+            $incs = @(); try { $incs = @(Get-LBIncidents -Config $cfg) } catch { }
+            $i = 0
+            foreach ($r in @($res.Items)) {
+                $o = $items[$i]; $i++
+                $ft = ConvertTo-LBLocal $r.t; $st = ''
+                foreach ($c in $incs) {
+                    if ([string]$c.Machine -ne [string]$r.host -or [string]$c.Category -ne [string]$r.cat) { continue }
+                    $fs = ConvertTo-LBDate ([string]$c.FirstSeen); if ($fs -and $ft -and $ft -lt $fs.AddMinutes(-5)) { continue }
+                    $st = [string]$c.Status; if (-not $st) { $st = 'Open' }
+                    if ($st -ne 'Closed') { break }
+                }
+                $o.status = $(if ($st) { $st } else { 'Logged' })
+            }
+        }
+        return [ordered]@{ total=$res.Total; items=$items }
     }
     '/api/finding' {
         $id = Get-LBQ $Ctx 'id'
