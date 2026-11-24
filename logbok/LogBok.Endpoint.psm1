@@ -9,7 +9,7 @@
 #  دستورها هرگز «متنِ اسکریپتِ دلخواه» نیستند؛ فقط انواعِ ازپیش‌تعریف‌شده با پارامترِ اعتبارسنجی‌شده.
 # ==========================================================================
 $script:Inv = [Globalization.CultureInfo]::InvariantCulture
-$script:ActionTypes = @('inventory','defender-scan','defender-update','isolate','unisolate','kill-process','block-ip','unblock-ip','reboot','update-agent','sync-policy','posture-scan','fix-posture','patch-scan','install-updates','set-server','logoff-session','disconnect-session','message-session','uninstall')
+$script:ActionTypes = @('kill-pid','quarantine-file','restore-file','scan-file','collect-processes','inventory','defender-scan','defender-update','isolate','unisolate','kill-process','block-ip','unblock-ip','reboot','update-agent','sync-policy','posture-scan','fix-posture','patch-scan','install-updates','set-server','logoff-session','disconnect-session','message-session','uninstall')
 $script:PostureFixable = @('fw-on','av-rt','av-sig','smb1','rdp-nla','uac','guest','autorun','wdigest','lsa-ppl','ntlm','llmnr','anon','ps2','screenlock','pwlen','lockout','wuauserv','audit-logon')
 $script:WeekDays = @('Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday')
 
@@ -201,6 +201,10 @@ function Add-LBAgentAction {
     if ($script:ActionTypes -notcontains $Type) { throw "unknown action: $Type" }
     $a = @{}
     switch ($Type) {
+        'kill-pid'        { $a.pid = [int]$Arguments.pid; if ($a.pid -le 4) { throw 'invalid process id' }; $a.tree = [bool]$Arguments.tree }
+        'quarantine-file' { $pth = ([string]$Arguments.path).Trim(); if ($pth -notmatch '^[A-Za-z]:\\[^\x00-\x1f<>"|?*]{1,400}$') { throw 'a full file path (C:\...) is required' }; $a.path = $pth }
+        'scan-file'       { $pth = ([string]$Arguments.path).Trim(); if ($pth -notmatch '^[A-Za-z]:\\[^\x00-\x1f<>"|?*]{0,400}$') { throw 'a full path (C:\...) is required' }; $a.path = $pth }
+        'restore-file'    { $h = ([string]$Arguments.sha256).Trim().ToLowerInvariant(); if ($h -notmatch '^[a-f0-9]{64}$') { throw 'invalid SHA-256' }; $a.sha256 = $h }
         'kill-process' { $n = ([string]$Arguments.name).Trim(); if ($n -notmatch '^[A-Za-z0-9_.\- ]{1,80}(\.exe)?$') { throw 'invalid process name' }; $a.name = ($n -replace '\.exe$', '') }
         'block-ip'     { if ([string]$Arguments.ip -notmatch '^\d{1,3}(\.\d{1,3}){3}$') { throw 'invalid IP' }; $a.ip = [string]$Arguments.ip; $a.minutes = [math]::Max(0, [int]$Arguments.minutes) }
         'unblock-ip'   { if ([string]$Arguments.ip -notmatch '^\d{1,3}(\.\d{1,3}){3}$') { throw 'invalid IP' }; $a.ip = [string]$Arguments.ip }
@@ -253,6 +257,9 @@ function Save-LBAgentReport {
     if ($Body.post) { $o = [ordered]@{ At = (Get-Date).ToString('o', $script:Inv); Data = $Body.post }; [IO.File]::WriteAllText((Join-Path $hd 'posture.json'), (ConvertTo-Json -InputObject $o -Depth 6), (New-Object Text.UTF8Encoding($false))) }
     if ($Body.pat) { $o = [ordered]@{ At = (Get-Date).ToString('o', $script:Inv); Data = $Body.pat }; [IO.File]::WriteAllText((Join-Path $hd 'patches.json'), (ConvertTo-Json -InputObject $o -Depth 6), (New-Object Text.UTF8Encoding($false))) }
     if ($Body.ar) { Set-LBAgentActionResults -StateDir $StateDir -HostName $HostName -Results @($Body.ar) }
+    # EDR: process snapshot and quarantine list (shown in the console; checked against IOC hashes by the engine)
+    if ($Body.PSObject.Properties['proc'] -and @($Body.proc).Count) { $o = [ordered]@{ At = (Get-Date).ToString('o', $script:Inv); Data = @($Body.proc) }; [IO.File]::WriteAllText((Join-Path $hd 'processes.json'), (ConvertTo-Json -InputObject $o -Depth 4 -Compress), (New-Object Text.UTF8Encoding($false))) }
+    if ($Body.PSObject.Properties['quar']) { $o = [ordered]@{ At = (Get-Date).ToString('o', $script:Inv); Data = @($Body.quar | Where-Object { $_ }) }; [IO.File]::WriteAllText((Join-Path $hd 'quarantine.json'), (ConvertTo-Json -InputObject $o -Depth 4), (New-Object Text.UTF8Encoding($false))) }
     if ($Body.PSObject.Properties['sess']) { $o = [ordered]@{ At = (Get-Date).ToString('o', $script:Inv); Data = @($Body.sess | Where-Object { $_ }) }; [IO.File]::WriteAllText((Join-Path $hd 'sessions.json'), (ConvertTo-Json -InputObject $o -Depth 5), (New-Object Text.UTF8Encoding($false))) }
 }
 function Get-LBAgentDirectives {
