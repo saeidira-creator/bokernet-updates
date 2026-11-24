@@ -1812,6 +1812,35 @@ function Invoke-LBWebApi {
         $a = @(Get-LBAgentActions -StateDir $sd -HostName $hn | Sort-Object { [string]$_.Created } -Descending | Select-Object -First 200)
         return @{ items = @($a | ForEach-Object { [ordered]@{ id=[string]$_.Id; host=[string]$_.Host; type=[string]$_.Type; args=$_.Args; status=[string]$_.Status; ok=$_.Ok; output=[string]$_.Output; created=(ConvertTo-LBIsoText $_.Created); sent=(ConvertTo-LBIsoText $_.SentAt); done=(ConvertTo-LBIsoText $_.DoneAt); by=[string]$_.By } }) }
     }
+    '/api/agent/processes' {
+        # EDR: last process snapshot of one computer (tree is built in the browser) + IOC matches
+        $hn = ([string](Get-LBQ $Ctx 'name' '')).ToUpperInvariant()
+        if ($hn -notmatch '^[A-Z0-9_.\-]{1,63}$') { throw 'invalid name' }
+        $hd = Get-LBPushDir -StateDir $sd -HostName $hn
+        $rd = { param($f) $p = Join-Path $hd $f; if (Test-Path $p) { try { return (Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { } }; return $null }
+        $pr = & $rd 'processes.json'; $qu = & $rd 'quarantine.json'
+        $ioc = @{}; try { if (-not (Get-Command Get-LBIocHashes -ErrorAction SilentlyContinue)) { Import-Module (Join-Path $script:Root 'LogBok.Detectors.psm1') -DisableNameChecking -ErrorAction Stop }; $ioc = Get-LBIocHashes -StateDir $sd } catch { }
+        $items = @(); if ($pr) { foreach ($x in @($pr.Data)) { $h = ([string]$x.h).ToLowerInvariant(); $items += [ordered]@{ pid=[int]$x.p; ppid=[int]$x.pp; name=[string]$x.n; path=[string]$x.x; cmd=[string]$x.c; start=[string]$x.s; sha256=$h; sig=[string]$x.sg; publisher=[string]$x.pub; ioc=$(if ($h -and $ioc.ContainsKey($h)) { $(if ($ioc[$h]) { [string]$ioc[$h] } else { 'IOC' }) } else { '' }) } } }
+        return [ordered]@{ name=$hn; at=$(if ($pr) { [string]$pr.At } else { '' }); items=$items; quarantine=$(if ($qu) { @($qu.Data) } else { @() }); quarantineAt=$(if ($qu) { [string]$qu.At } else { '' }) }
+    }
+    '/api/ioc' {
+        # known-malicious SHA-256 list used by the EDR detector (one hash per line, optional "# name")
+        $f = Join-Path $sd 'ioc-hashes.txt'
+        if ($Ctx.Request.HttpMethod -eq 'POST') {
+            $lines = @(); $bad = 0
+            foreach ($ln in @(([string]$body.text) -split "`r?`n")) {
+                $t = $ln.Trim(); if (-not $t) { continue }
+                if ($t.StartsWith('#')) { $lines += $t; continue }
+                $pp = $t -split '\s+', 2
+                if ($pp[0] -match '^[A-Fa-f0-9]{64}$') { $lines += ($pp[0].ToLowerInvariant() + $(if ($pp.Count -gt 1) { ' ' + ($pp[1] -replace '[\x00-\x1f]', '') } else { '' })) } else { $bad++ }
+            }
+            [IO.File]::WriteAllText($f, (($lines -join "`r`n") + "`r`n"), (New-Object Text.UTF8Encoding($false)))
+            Write-LBWebAudit -User $User -Message ("IOC hash list saved ({0} lines)" -f $lines.Count)
+            return [ordered]@{ ok=$true; saved=@($lines | Where-Object { $_ -notmatch '^#' }).Count; skipped=$bad }
+        }
+        $txt = ''; if (Test-Path $f) { $txt = [IO.File]::ReadAllText($f) }
+        return [ordered]@{ text=$txt }
+    }
     '/api/agent/detail' {
         $hn = ([string](Get-LBQ $Ctx 'name' '')).ToUpperInvariant()
         if ($hn -notmatch '^[A-Z0-9_.\-]{1,63}$') { throw 'invalid name' }
