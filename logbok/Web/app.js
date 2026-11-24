@@ -722,7 +722,7 @@
       dcTimeline: 'روندِ تهدیدها', dcIncident: 'پاسخ به رخداد', dcActive: 'فعال', dcResolved24: 'بسته‌شده (۲۴ ساعت)',
       stDetected: 'شناسایی', stTriage: 'ارزیابی', stResolved: 'حل‌شده',
       dcRecent: 'آخرین هشدارها', dcAlertLog: 'همهٔ رویدادها',
-      licLeft: 'لایسنس: {n} روز مانده', licPermShort: 'لایسنسِ دائمی', licSoon: 'لایسنس {n} روزِ دیگر تمام می‌شود — برای تمدید با بوکرنت تماس بگیرید', dcRiskSub: 'امتیازِ ریسکِ سازمان', dcRiskWord: '', dcActiveInc: 'رخدادهای فعال', dcProgress: 'روندِ پاسخ', stContained: 'مهارشده', stEradication: 'پاک‌سازی', stRecovery: 'بازیابی', stNew: 'جدید', stLogged: 'ثبت‌شده', svHigh: 'بالا', svMed: 'متوسط', svLow: 'پایین', svInfo: 'اطلاعاتی', dcAlert: 'هشدار', dcSignins: 'کلِ ورودها', d7: '۷ روزِ گذشته', sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
+      licLeft: 'لایسنس: {n} روز مانده', licPermShort: 'لایسنسِ دائمی', licSoon: 'لایسنس {n} روزِ دیگر تمام می‌شود — برای تمدید با بوکرنت تماس بگیرید', dcRiskSub: 'امتیازِ ریسکِ سازمان', dcRiskWord: '', dcActiveInc: 'رخدادهای فعال', dcProgress: 'روندِ پاسخ', stContained: 'مهارشده', stEradication: 'پاک‌سازی', stRecovery: 'بازیابی', stNew: 'جدید', stLogged: 'ثبت‌شده', svHigh: 'بالا', svMed: 'متوسط', svLow: 'پایین', svInfo: 'اطلاعاتی', dcAlert: 'هشدار', dcSignins: 'کلِ ورودها', d7: '۷ روزِ گذشته', rsFound: 'مورد پیدا شد', rsTop: 'بیشترین', rsFilter: 'کلیک: فقط همین را نشان بده', rsMore: '+ {n} مورد دیگر', rsMost: 'بیشتر از همه —', rsByHour: 'در طولِ زمان (ساعتی)', rsByDay: 'در طولِ زمان (روزانه)', rsDetails: 'جزئیات', rsClear: 'برداشتنِ فیلتر', adProcesses: 'پردازه‌ها (EDR)', prFind: 'جست‌وجو در نام، مسیر، خطِ فرمان، هش…', prAll: 'همه', prRisky: 'فقط مشکوک‌ها', prRefresh: 'گرفتنِ فهرستِ تازه', prAsked: 'فهرستِ تازه در نوبتِ بعدیِ ایجنت می‌رسد', prIoc: 'فهرستِ هشِ مخرب (IOC)', prAt: 'فهرستِ پردازه‌ها از', prCount: 'پردازه', prNone: 'هنوز فهرستی از این سیستم نرسیده (ایجنت 1.8.0 به بالا هر ۱۵ دقیقه می‌فرستد)', prTampered: 'فایلِ دست‌کاری‌شده', prUnsigned: 'بدونِ امضا', prKill: 'توقف', prTree: 'توقفِ درخت', prKillTree: 'توقفِ این پردازه و همهٔ پردازه‌هایی که ساخته', prKillQ: 'پردازهٔ {n} متوقف شود؟', prKillTreeQ: '{n} و همهٔ پردازه‌های زیرمجموعه‌اش متوقف شوند؟', prQuar: 'قرنطینه', prQuarQ: 'فایلِ {n} قرنطینه شود؟ پردازه‌هایش متوقف می‌شوند و فایل به پوشهٔ قفل‌شده منتقل می‌شود (قابلِ بازگردانی).', prScan: 'اسکن', prProcess: 'پردازه', prSigner: 'امضاکننده', prPath: 'مسیر', prStarted: 'شروع', prQuarList: 'فایل‌های قرنطینه‌شده', prQuarEmpty: 'فایلی در قرنطینه نیست', prRestore: 'بازگردانی', prRestoreQ: 'فایلِ {n} به جای اصلی‌اش برگردد؟', prIocLead: 'هر خط یک SHA-256 و بعد از آن به‌دلخواه یک نام (مثلاً: 3f5a… Emotet). اگر برنامه‌ای با این هش روی هر سیستمی اجرا شود، هشدارِ بحرانی می‌آید و لاگ‌بوک خودکار پردازه را متوقف و فایل را قرنطینه می‌کند.', prSkipped: 'خطِ نامعتبر', acCollect: 'فهرستِ پردازه‌ها', sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
     },
     en: {
       ovLead2: 'Real-time security posture of your network and systems', severity: 'Severity', category: 'Category',
@@ -736,7 +736,7 @@
       dcTimeline: 'Threat timeline', dcIncident: 'Incident response', dcActive: 'Active', dcResolved24: 'Resolved (24h)',
       stDetected: 'Detected', stTriage: 'Triage', stResolved: 'Resolved',
       dcRecent: 'Recent alerts', dcAlertLog: 'View full alert log',
-      licLeft: 'License: {n} days left', licPermShort: 'Permanent license', licSoon: 'The license ends in {n} days — contact BokerNet to renew', dcRiskSub: 'Organisational risk score', dcRiskWord: 'Risk', dcActiveInc: 'Active incidents', dcProgress: 'Response progress', stContained: 'Contained', stEradication: 'Eradication', stRecovery: 'Recovery', stNew: 'New', stLogged: 'Logged', svHigh: 'High', svMed: 'Medium', svLow: 'Low', svInfo: 'Informational', dcAlert: 'Alert', dcSignins: 'Sign-ins', d7: 'Last 7 days', sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
+      licLeft: 'License: {n} days left', licPermShort: 'Permanent license', licSoon: 'The license ends in {n} days — contact BokerNet to renew', dcRiskSub: 'Organisational risk score', dcRiskWord: 'Risk', dcActiveInc: 'Active incidents', dcProgress: 'Response progress', stContained: 'Contained', stEradication: 'Eradication', stRecovery: 'Recovery', stNew: 'New', stLogged: 'Logged', svHigh: 'High', svMed: 'Medium', svLow: 'Low', svInfo: 'Informational', dcAlert: 'Alert', dcSignins: 'Sign-ins', d7: 'Last 7 days', rsFound: 'found', rsTop: 'Top', rsFilter: 'Click to show only this', rsMore: '+ {n} more', rsMost: 'Most often —', rsByHour: 'Over time (hourly)', rsByDay: 'Over time (daily)', rsDetails: 'Details', rsClear: 'Clear filters', adProcesses: 'Processes (EDR)', prFind: 'Search name, path, command line, hash…', prAll: 'All', prRisky: 'Suspicious only', prRefresh: 'Get a fresh list', prAsked: 'A fresh list arrives with the agent\'s next check-in', prIoc: 'Malicious hash list (IOC)', prAt: 'Process list from', prCount: 'processes', prNone: 'No process list from this computer yet (agent 1.8.0+ sends one every 15 minutes)', prTampered: 'Tampered file', prUnsigned: 'Unsigned', prKill: 'Stop', prTree: 'Stop tree', prKillTree: 'Stop this process and every process it started', prKillQ: 'Stop process {n}?', prKillTreeQ: 'Stop {n} and every process under it?', prQuar: 'Quarantine', prQuarQ: 'Quarantine {n}? Its processes are stopped and the file is moved into a locked folder (can be restored).', prScan: 'Scan', prProcess: 'Process', prSigner: 'Signer', prPath: 'Path', prStarted: 'Started', prQuarList: 'Quarantined files', prQuarEmpty: 'Nothing in quarantine', prRestore: 'Restore', prRestoreQ: 'Restore {n} to its original place?', prIocLead: 'One SHA-256 per line, optionally followed by a name (e.g. 3f5a… Emotet). When a program with such a hash runs on any computer, a critical alert is raised and LogBok automatically stops the process and quarantines the file.', prSkipped: 'invalid lines', acCollect: 'Process list', sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
     }
   };
   for (var L21 in D21) { for (var k21 in D21[L21]) { D[L21][k21] = D21[L21][k21]; } }
@@ -1203,7 +1203,7 @@
     clear(b); b.className = 'sys ' + (lic ? 'bad' : (ok ? 'ok' : 'warn'));
     b.appendChild(el('div', { cls: 'sl' }, el('i'), el('span', { text: lic ? t('sysLic') : t('sysOnline') })));
     var L = s && s.license, dl = L && L.daysLeft;
-    if (L && L.valid) b.appendChild(el('div', { cls: 'slic' + (dl !== null && dl !== undefined && dl <= 30 ? ' soon' : ''), title: L.expiry || '' }, L.permanent ? t('licPermShort') : (t('licLeft').replace('{n}', dl) + (L.expiry ? ' · ' + licDate(L.expiry) : ''))));
+    if (L && L.valid) b.appendChild(el('div', { cls: 'slic' + (dl !== null && dl !== undefined && dl <= 30 ? ' soon' : ''), title: L.expiry || '' }, L.permanent ? t('licPermShort') : t('licLeft').replace('{n}', dl)));
     b.appendChild(el('div', { cls: 'sv num', text: 'v' + ((S.meta && S.meta.version) || '') }));
   }
 
@@ -3091,7 +3091,7 @@
   }
 
   // agent detail drawer: health, hardware, software, policies, remote actions
-  var ACTIONS = [['inventory', 'acInventory', ''], ['sync-policy', 'acSync', ''], ['defender-scan', 'acScan', ''], ['defender-update', 'acDefUpd', ''], ['update-agent', 'acUpdate', ''], ['kill-process', 'acKill', ''], ['block-ip', 'acBlockIp', ''], ['unblock-ip', 'acUnblockIp', ''], ['isolate', 'acIsolate', 'danger'], ['unisolate', 'acUnisolate', ''], ['reboot', 'acReboot', 'danger']];
+  var ACTIONS = [['inventory', 'acInventory', ''], ['collect-processes', 'acCollect', ''], ['sync-policy', 'acSync', ''], ['defender-scan', 'acScan', ''], ['defender-update', 'acDefUpd', ''], ['update-agent', 'acUpdate', ''], ['kill-process', 'acKill', ''], ['block-ip', 'acBlockIp', ''], ['unblock-ip', 'acUnblockIp', ''], ['isolate', 'acIsolate', 'danger'], ['unisolate', 'acUnisolate', ''], ['reboot', 'acReboot', 'danger']];
   function runAction(hosts, type, done) {
     var a = {};
     if (type === 'kill-process') { var n = window.prompt(t('acKillQ'), ''); if (!n) return; a.name = n.trim(); }
@@ -3099,6 +3099,74 @@
     if (type === 'reboot') { if (!window.confirm(t('acRebootQ'))) return; a.minutes = 5; }
     if (type === 'isolate' && !window.confirm(t('confirmIsolate'))) return;
     api('/api/agent/action', { hosts: hosts, type: type, args: a }).then(function (x) { flash(t('acQueued') + ' (' + x.queued + ')'); if (done) done(); }).catch(fail);
+  }
+  // EDR: process tree of one computer, with response actions (stop, stop tree, quarantine, scan) and the quarantine
+  function processesTab(pane, name, reload) {
+    pane.appendChild(spinner());
+    api('/api/agent/processes?name=' + encodeURIComponent(name)).then(function (r) {
+      clear(pane);
+      var items = arr(r.items), qf = el('input', { type: 'search', placeholder: t('prFind') });
+      var only = el('select', null, el('option', { value: '', text: t('prAll') }), el('option', { value: 'risk', text: t('prRisky') }), el('option', { value: 'ioc', text: 'IOC' }));
+      pane.appendChild(el('div', { cls: 'fbar' }, qf, only,
+        btn('⟳ ' + t('prRefresh'), function () { api('/api/agent/action', { hosts: [name], type: 'collect-processes', args: {} }).then(function () { flash(t('prAsked')); }).catch(fail); }, 'sm'),
+        btn(t('prIoc'), iocDrawer, 'sm')));
+      pane.appendChild(el('div', { cls: 'muted', style: 'font-size:12px;margin:2px 0 8px', text: r.at ? t('prAt') + ' ' + fmtT(r.at) + ' · ' + items.length + ' ' + t('prCount') : t('prNone') }));
+      var byPid = {}, kids = {}; items.forEach(function (p) { byPid[p.pid] = p; });
+      items.forEach(function (p) { var pp = byPid[p.ppid] && p.ppid !== p.pid ? p.ppid : 0; (kids[pp] = kids[pp] || []).push(p); });
+      function risky(p) { return !!p.ioc || p.sig === 'HashMismatch' || ((p.sig === 'NotSigned' || p.sig === 'NotTrusted' || p.sig === 'UnknownError') && /\\(AppData|Downloads|Users\\Public|Temp|ProgramData)\\/i.test(p.path || '')); }
+      function sigPill(p) {
+        if (p.ioc) return pill('Fail', 'IOC: ' + p.ioc);
+        if (p.sig === 'Valid' || p.sig === 'Windows') return el('span', { cls: 'sigok', title: p.publisher || 'Windows', text: '✓ ' + (p.publisher || 'Windows') });
+        if (p.sig === 'HashMismatch') return pill('Fail', t('prTampered'));
+        if (!p.path) return el('span', { cls: 'muted', text: '—' });
+        return pill('Warn', t('prUnsigned'));
+      }
+      function act(p, type, args, q) { if (q && !window.confirm(q)) return; api('/api/agent/action', { hosts: [name], type: type, args: args }).then(function () { flash(t('acQueued')); }).catch(fail); }
+      var tb = el('tbody');
+      function draw() {
+        clear(tb); var q = qf.value.trim().toLowerCase(), mode = only.value, n = 0;
+        function row(p, depth) {
+          var hit = (!q || ((p.name + ' ' + p.path + ' ' + p.cmd + ' ' + p.pid + ' ' + p.sha256).toLowerCase().indexOf(q) >= 0)) && (!mode || (mode === 'ioc' ? !!p.ioc : risky(p)));
+          if (hit) {
+            n++;
+            tb.appendChild(el('tr', { cls: risky(p) ? 'prisk' : '' },
+              el('td', null, el('div', { cls: 'pname', style: 'padding-inline-start:' + (q || mode ? 0 : Math.min(depth, 8) * 16) + 'px' }, depth && !q && !mode ? el('span', { cls: 'pbr', text: '└' }) : null, el('b', { text: p.name }), el('span', { cls: 'muted num', text: ' ' + p.pid })),
+                p.path ? el('div', { cls: 'pcmd mono', title: p.path + (p.sha256 ? '\nSHA-256 ' + p.sha256 : ''), text: p.path }) : null,
+                p.cmd && p.cmd.replace(/"/g, '').toLowerCase() !== String(p.path || '').toLowerCase() ? el('div', { cls: 'pcmd mono', title: p.cmd, text: '› ' + p.cmd }) : null,
+                /^(system|idle|smss|csrss|wininit|winlogon|services|lsass|lsaiso|svchost|registry|memory compression|secure system)(\.exe)?$/i.test(p.name) || p.pid <= 4 ? null : el('div', { cls: 'pacts' },
+                el('button', { type: 'button', cls: 'btn xs', title: t('prKill'), onclick: function () { act(p, 'kill-pid', { pid: p.pid, tree: false }, t('prKillQ').replace('{n}', p.name + ' (' + p.pid + ')')); } }, t('prKill')),
+                el('button', { type: 'button', cls: 'btn xs', title: t('prKillTree'), onclick: function () { act(p, 'kill-pid', { pid: p.pid, tree: true }, t('prKillTreeQ').replace('{n}', p.name + ' (' + p.pid + ')')); } }, t('prTree')),
+                p.path ? el('button', { type: 'button', cls: 'btn xs danger', onclick: function () { act(p, 'quarantine-file', { path: p.path }, t('prQuarQ').replace('{n}', p.path)); } }, t('prQuar')) : null,
+                p.path ? el('button', { type: 'button', cls: 'btn xs', onclick: function () { act(p, 'scan-file', { path: p.path }); } }, t('prScan')) : null)),
+              el('td', null, sigPill(p)),
+              el('td', { cls: 'num muted nw', text: p.start ? fmtT(p.start) : '' })));
+          }
+          if (!q && !mode) arr(kids[p.pid]).forEach(function (c) { if (c !== p) row(c, depth + 1); });
+        }
+        if (q || mode) items.forEach(function (p) { row(p, 0); }); else arr(kids[0]).forEach(function (p) { row(p, 0); });
+        if (!n) tb.appendChild(emptyRow(3, t('prNone')));
+      }
+      qf.addEventListener('input', draw); only.addEventListener('change', draw);
+      pane.appendChild(el('div', { cls: 'tw ptree' }, el('table', null, el('thead', null, el('tr', null, [t('prProcess'), t('prSigner'), t('prStarted')].map(function (h) { return el('th', { text: h }); }))), tb)));
+      draw();
+      // quarantine
+      pane.appendChild(el('h4', { text: t('prQuarList') }));
+      var qr = arr(r.quarantine).map(function (z) {
+        return el('tr', null, el('td', { cls: 'mono', text: z.path }), el('td', { cls: 'mono muted', text: String(z.sha256 || '').slice(0, 16) + '…' }), el('td', { cls: 'num muted nw', text: fmtT(z.at) }),
+          el('td', null, el('button', { type: 'button', cls: 'btn xs', onclick: function () { if (!window.confirm(t('prRestoreQ').replace('{n}', z.path))) return; api('/api/agent/action', { hosts: [name], type: 'restore-file', args: { sha256: z.sha256 } }).then(function () { flash(t('acQueued')); }).catch(fail); } }, t('prRestore'))));
+      });
+      if (!qr.length) qr = [emptyRow(4, t('prQuarEmpty'))];
+      pane.appendChild(table([t('prPath'), 'SHA-256', t('time'), ''], qr));
+    }).catch(function (e) { clear(pane); fail(e); });
+  }
+  function iocDrawer() {
+    openDrawer(function (d) {
+      drawerHead(d, t('prIoc'));
+      d.appendChild(el('p', { cls: 'lead', text: t('prIocLead') }));
+      var ta = el('textarea', { cls: 'mono', rows: 16, style: 'width:100%' }); d.appendChild(ta);
+      api('/api/ioc').then(function (x) { ta.value = x.text || ''; }).catch(fail);
+      d.appendChild(el('div', { cls: 'acts', style: 'margin-top:10px' }, btn(t('save'), function () { api('/api/ioc', { text: ta.value }).then(function (x) { flash(t('saved') + ' · ' + x.saved + (x.skipped ? ' · ' + t('prSkipped') + ' ' + x.skipped : '')); closeDrawer(); }).catch(fail); }, 'pri')));
+    });
   }
   function agentDrawer(name, firstTab) {
     openDrawer(function (d) {
@@ -3110,7 +3178,7 @@
           clear(body);
           var inv = (x.inventory && x.inventory.Data) || null, hl = (x.health && x.health.Data) || null;
           var tabs = el('div', { cls: 'tabs' });
-          [['overview', 'adOverview'], ['security', 'adSecurity'], ['updates', 'adUpdates'], ['hardware', 'adHardware'], ['software', 'adSoftware'], ['policies', 'adPolicies'], ['actions', 'adActions']].forEach(function (z) { tabs.appendChild(el('button', { type: 'button', cls: dtab === z[0] ? 'on' : '', text: t(z[1]), onclick: function () { dtab = z[0]; load(); } })); });
+          [['overview', 'adOverview'], ['security', 'adSecurity'], ['updates', 'adUpdates'], ['hardware', 'adHardware'], ['software', 'adSoftware'], ['processes', 'adProcesses'], ['policies', 'adPolicies'], ['actions', 'adActions']].forEach(function (z) { tabs.appendChild(el('button', { type: 'button', cls: dtab === z[0] ? 'on' : '', text: t(z[1]), onclick: function () { dtab = z[0]; load(); } })); });
           body.appendChild(tabs);
           var pane = el('div'); body.appendChild(pane);
           if (dtab === 'overview') {
@@ -3165,6 +3233,7 @@
               pane.appendChild(el('div', { cls: 'row' }, q, el('span', { cls: 'muted', text: arr(inv.software).length + ' ' + t('adItems') })));
               pane.appendChild(tb); drawSw();
             }
+          } else if (dtab === 'processes') { processesTab(pane, name, load);
           } else if (dtab === 'policies') {
             var e2 = x.effective || {};
             pane.appendChild(el('div', { cls: 'kv' },
@@ -3251,6 +3320,59 @@
       reportPanel(right, def, c);
     }).catch(function (e) { clear(left); fail(e); });
   }
+  // ---- report summary in plain words: how many, when, and who/where most often (click to filter)
+  function reportSummary(r, def, noTime, refilter) {
+    var cols = arr(r.columns), rows = arr(r.rows), box = el('div', { cls: 'rsum' });
+    var ci = function (k) { for (var i = 0; i < cols.length; i++) if (cols[i].k === k) return i; return -1; };
+    var cnt = ci('count'), tIdx = ci('time');
+    var weight = function (row) { var n = cnt >= 0 ? parseInt(row[cnt], 10) : 1; return isNaN(n) ? 1 : n; };
+    var total = 0; rows.forEach(function (row) { total += weight(row); });
+    // headline
+    var head = el('div', { cls: 'rsh' });
+    head.appendChild(el('div', { cls: 'rsn num', text: String(total) }));
+    var lineTxt = (total ? t('rsFound') : t('rpEmpty')) + (noTime ? '' : ' · ' + rangeName(RP.hours));
+    head.appendChild(el('div', { cls: 'rst' }, el('b', { text: def.title }), el('span', { text: lineTxt })));
+    box.appendChild(head);
+    if (!rows.length) return box;
+    // the columns worth summarising, most useful first
+    var pref = ['user', 'host', 'ip', 'd:WorkstationName', 'c:reason', 'c:proto', 'c:ltype', 'c:proc', 'c:svc', 'c:file', 'c:group', 'c:target', 'cat', 'c:app'];
+    var picks = [];
+    pref.forEach(function (k) { var i = ci(k); if (i >= 0 && picks.length < 3) picks.push(i); });
+    if (picks.length < 2) cols.forEach(function (c, i) { if (picks.length < 3 && picks.indexOf(i) < 0 && i !== tIdx && i !== cnt && !/^(first|last|start|end|dur|fails|time)$/.test(c.k)) picks.push(i); });
+    var blocks = el('div', { cls: 'rsb' }), sentence = [];
+    picks.forEach(function (i) {
+      var m = {}; rows.forEach(function (row) { var v = String(row[i] == null ? '' : row[i]).trim(); if (!v || v === '-') return; m[v] = (m[v] || 0) + weight(row); });
+      var top = Object.keys(m).sort(function (a, b) { return m[b] - m[a]; }).slice(0, 5);
+      if (!top.length) return;
+      var k = cols[i].k, b = el('div', { cls: 'rsc' }); b.appendChild(el('div', { cls: 'rscT', text: t('rsTop') + ' ' + cols[i].t }));
+      var mx = m[top[0]];
+      top.forEach(function (v) {
+        b.appendChild(el('div', { cls: 'rsr', title: t('rsFilter'), onclick: function () { refilter(k, v); } },
+          el('span', { cls: 'rsv', text: v }), el('span', { cls: 'rsbar' }, el('i', { style: 'width:' + Math.max(4, Math.round(m[v] * 100 / mx)) + '%' })), el('b', { cls: 'num', text: String(m[v]) })));
+      });
+      if (Object.keys(m).length > 5) b.appendChild(el('div', { cls: 'rsmore', text: t('rsMore').replace('{n}', Object.keys(m).length - 5) }));
+      blocks.appendChild(b);
+      sentence.push(cols[i].t + ': ' + top[0] + ' (' + m[top[0]] + ')');
+    });
+    if (sentence.length) head.querySelector('.rst').appendChild(el('span', { cls: 'rsw', text: t('rsMost') + ' ' + sentence.join(' · ') }));
+    // when: a small bar per hour (or per day for long ranges)
+    if (!noTime && tIdx >= 0 && cnt < 0) {
+      var day = RP.hours > 48, b2 = {}, keys = [];
+      rows.forEach(function (row) { var s = String(row[tIdx] || ''); var k2 = day ? s.slice(0, 10) : s.slice(0, 13); if (!k2) return; if (!(k2 in b2)) { b2[k2] = 0; keys.push(k2); } b2[k2]++; });
+      keys.sort();
+      if (keys.length > 1) {
+        var mx2 = 0; keys.forEach(function (k2) { if (b2[k2] > mx2) mx2 = b2[k2]; });
+        var ch = el('div', { cls: 'rsh2' });
+        keys.slice(-48).forEach(function (k2) { ch.appendChild(el('div', { title: (day ? k2 : k2.slice(5).replace('T', ' ') + ':00') + ' — ' + b2[k2], style: 'height:' + Math.max(6, Math.round(b2[k2] * 100 / mx2)) + '%' })); });
+        var wb = el('div', { cls: 'rsc wide' }, el('div', { cls: 'rscT', text: day ? t('rsByDay') : t('rsByHour') }), ch,
+          el('div', { cls: 'rsax' }, el('span', { text: keys[0].slice(5).replace('T', ' ') + (day ? '' : ':00') }), el('span', { text: keys[keys.length - 1].slice(5).replace('T', ' ') + (day ? '' : ':00') })));
+        blocks.appendChild(wb);
+      }
+    }
+    box.appendChild(blocks);
+    return box;
+  }
+  function rangeName(h) { return h <= 1 ? t('h1') : h <= 6 ? t('h6') : h <= 24 ? t('h24') : h <= 168 ? t('d7') : h <= 720 ? t('d30') : t('d90'); }
   function reportPanel(box, def, c) {
     clear(box);
     var head = card(def.title, null); box.appendChild(head);
@@ -3273,7 +3395,13 @@
       if (!res.firstChild) res.appendChild(spinner()); else res.style.opacity = '.55';
       api('/api/report/run', { id: def.id, hours: RP.hours, host: RP.host, user: RP.user, text: RP.text }).then(function (r) {
         if (my !== seq) return; res.style.opacity = ''; clear(res);
-        res.appendChild(el('div', { cls: 'muted', style: 'font-size:12px;margin-bottom:6px', text: r.total + ' ' + t('results') + (noTime ? '' : ' · ' + r.from + ' — ' + r.to) + ' · ' + r.ms + ' ms' + (r.truncated ? ' · ' + t('rpTrunc') : '') }));
+        res.appendChild(reportSummary(r, def, noTime, function (k, v) {
+          if (k === 'host') { host.value = v; RP.host = v; } else if (k === 'user') { user.value = v; RP.user = v; } else { txt.value = v; RP.text = v; }
+          load();
+        }));
+        var anyF = RP.host || RP.user || RP.text;
+        res.appendChild(el('div', { cls: 'rsmeta' }, el('span', { text: t('rsDetails') + ' · ' + r.total + ' ' + t('results') + (noTime ? '' : ' · ' + r.from + ' — ' + r.to) + (r.truncated ? ' · ' + t('rpTrunc') : '') }),
+          anyF ? el('a', { href: 'javascript:void 0', cls: 'rsclr', onclick: function () { host.value = user.value = txt.value = ''; RP.host = RP.user = RP.text = ''; load(); }, text: '✕ ' + t('rsClear') }) : null));
         var cols = arr(r.columns);
         var rows = arr(r.rows).map(function (row) { return el('tr', null, cols.map(function (col, i) { var val = row[i]; return el('td', { cls: col.k === 'time' || col.k === 'first' || col.k === 'last' || col.k === 'start' || col.k === 'end' ? 'num muted nw' : (col.k === 'count' || col.k === 'dur' || col.k === 'fails' ? 'num' : (String(val || '').length > 60 ? 'wrap' : '')) }, cellNode(col, val)); })); });
         if (!rows.length) rows = [emptyRow(cols.length || 1, t('rpEmpty'))];
@@ -4019,7 +4147,7 @@
 
     function step1() {
       clear(host); var c = shell();
-      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=7', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
+      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=8', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
       c.appendChild(el('div', { text: isSetup ? t('loginSetupLead') : t('loginLead'), style: 'opacity:.7;margin:4px 0 18px;font-size:13px;line-height:1.7' }));
       var user = inp(t('loginUser'), 'text', ''), pass = inp(t('loginPass'), 'password', ''), pass2 = null, rem = null;
       user.style.cssText = 'width:100%'; pass.style.cssText = 'width:100%';
