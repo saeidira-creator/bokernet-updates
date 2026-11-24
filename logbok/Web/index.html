@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LogBok Console</title>
-<link rel="icon" href="logo.svg?v=9" type="image/svg+xml">
+<link rel="icon" href="logo.svg?v=10" type="image/svg+xml">
 <link rel="preload" href="vazirmatn.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="app.css?v=43">
+<link rel="stylesheet" href="app.css?v=44">
 </head>
 <body>
 <aside class="rail" id="rail">
-  <div class="brand"><div class="brandRow"><img src="logo.svg?v=9" alt="" width="62" height="66"><div><div class="nm">LogBok</div><div class="sub" id="brandSub"></div></div></div></div>
+  <div class="brand"><div class="lockup inrail"><img class="bmark" src="logo.svg?v=10" alt="LogBok" width="110" height="90"><div class="wm"><span class="l1">Log</span><span class="l2">Bok</span></div><div class="sp" id="brandSub">Security Package</div></div></div>
   <nav class="navi" id="nav"></nav>
   <div class="sys" id="sysStat"></div>
 </aside>
@@ -22,7 +22,9 @@
     </div>
     <div class="tools">
       <span class="live" id="live"><span class="d"></span><span id="liveTxt"></span></span>
+      <button type="button" class="rbtn" id="refreshBtn"></button>
       <div class="themeSw" id="themeSw"></div>
+      <span class="tsep"></span>
       <div class="who" id="who"></div>
     </div>
   </div>
@@ -31,6 +33,6 @@
 </main>
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" hidden aria-modal="true" role="dialog"></aside>
-<script src="app.js?v=43"></script>
+<script src="app.js?v=44"></script>
 </body>
 </html>
