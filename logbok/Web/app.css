@@ -741,3 +741,60 @@ table th{color:var(--muted)}
 :root[data-theme="light"] .themeSw button.on{color:#D9982F;background:transparent}
 :root[data-theme="light"] .stp i{color:#fff}
 :root[data-theme="light"] .card,:root[data-theme="light"] .watch{border-color:rgba(15,181,168,.25)}
+
+/* ---- light mode: the side menu is light too (it stayed black) */
+:root[data-theme="light"] .rail{background-color:#FFFFFF;background-image:radial-gradient(90% 40% at 0% 100%,rgba(224,169,62,.16),transparent 70%),linear-gradient(180deg,#FFFFFF,#F7F4EC);border-inline-end:1px solid rgba(16,32,64,.08)}
+:root[data-theme="light"] .rail::after{opacity:.35}
+:root[data-theme="light"] .brand .nm{color:#0F1B2D}
+:root[data-theme="light"] .brand .sub{color:#B07A1E}
+:root[data-theme="light"] .navi .grp{color:#8A94A3}
+:root[data-theme="light"] .navi a{color:#33445C}
+:root[data-theme="light"] .navi a .ic{color:#6B7A8F}
+:root[data-theme="light"] .navi a:hover{background:rgba(16,32,64,.05);color:#0F1B2D}
+:root[data-theme="light"] .navi a:hover .ic{color:#0F1B2D}
+:root[data-theme="light"] .navi a.on,:root[data-theme="light"] .navi a.on .ic{color:#1A1206}
+:root[data-theme="light"] .sys{background:#FFFFFF;border-color:rgba(176,122,30,.25);box-shadow:0 6px 18px -12px rgba(16,32,64,.25)}
+:root[data-theme="light"] .sys .sl{color:#16935F}
+:root[data-theme="light"] .sys .sv,:root[data-theme="light"] .sys .slic{color:#55657A}
+:root[data-theme="light"] .brandRow img{filter:drop-shadow(0 2px 6px rgba(176,122,30,.35))}
+.brandRow{gap:8px}
+.brandRow img{width:62px!important;height:66px!important;margin-inline-start:-8px;margin-block:-8px;filter:none!important}
+
+/* ---- reports: plain-language summary above the table */
+.rsum{margin-bottom:14px}
+.rsh{display:flex;align-items:center;gap:16px;padding:4px 2px 14px;border-bottom:1px solid var(--line)}
+.rsn{font-size:40px;font-weight:800;line-height:1;color:var(--mint);min-width:64px;text-align:center}
+.rst{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rst b{font-size:15px}
+.rst span{color:var(--ink2);font-size:13px}
+.rst .rsw{color:var(--ink);font-weight:600}
+.rsb{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px}
+.rsc{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.rsc.wide{grid-column:1/-1}
+.rscT{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.rsr{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(40px,1fr) auto;align-items:center;gap:10px;padding:5px 4px;border-radius:7px;cursor:pointer;font-size:12.5px}
+.rsr:hover{background:var(--accentSoft)}
+.rsv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsbar{height:7px;border-radius:7px;background:var(--ringTrack);overflow:hidden}
+.rsbar i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,var(--mint),#3D8BFF)}
+.rsr b{font-weight:800}
+.rsmore{font-size:11.5px;color:var(--muted);margin-top:4px;padding-inline-start:4px}
+.rsh2{display:flex;align-items:flex-end;gap:3px;height:70px}
+.rsh2 div{flex:1;min-width:3px;border-radius:3px 3px 0 0;background:var(--mint);opacity:.85}
+.rsh2 div:hover{opacity:1;background:var(--gold)}
+.rsax{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;direction:ltr}
+.rsmeta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);margin:6px 0 8px}
+.rsclr{color:var(--crit);text-decoration:none;font-weight:600}
+.repwrap table tbody tr:nth-child(even) td{background:rgba(127,141,157,.05)}
+
+/* ---- EDR process tree */
+.ptree td{vertical-align:top}
+.pname{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pbr{color:var(--muted)}
+.pcmd{font-size:11px;color:var(--muted);max-width:440px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.pth{font-size:11.5px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sigok{color:var(--ok);font-size:12px;white-space:nowrap}
+tr.prisk td{background:rgba(255,77,94,.06)}
+.btn.xs{padding:3px 8px;font-size:11px;min-height:0;margin-inline-end:4px}
+.pacts{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;opacity:.55}
+tr:hover .pacts,tr.prisk .pacts{opacity:1}
