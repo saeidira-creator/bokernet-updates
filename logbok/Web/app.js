@@ -722,7 +722,7 @@
       dcTimeline: 'روندِ تهدیدها', dcIncident: 'پاسخ به رخداد', dcActive: 'فعال', dcResolved24: 'بسته‌شده (۲۴ ساعت)',
       stDetected: 'شناسایی', stTriage: 'ارزیابی', stResolved: 'حل‌شده',
       dcRecent: 'آخرین هشدارها', dcAlertLog: 'همهٔ رویدادها',
-      sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
+      licLeft: 'لایسنس: {n} روز مانده', licPermShort: 'لایسنسِ دائمی', licSoon: 'لایسنس {n} روزِ دیگر تمام می‌شود — برای تمدید با بوکرنت تماس بگیرید', sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
     },
     en: {
       ovLead2: 'Real-time security posture of your network and systems', severity: 'Severity', category: 'Category',
@@ -736,7 +736,7 @@
       dcTimeline: 'Threat timeline', dcIncident: 'Incident response', dcActive: 'Active', dcResolved24: 'Resolved (24h)',
       stDetected: 'Detected', stTriage: 'Triage', stResolved: 'Resolved',
       dcRecent: 'Recent alerts', dcAlertLog: 'View full alert log',
-      sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
+      licLeft: 'License: {n} days left', licPermShort: 'Permanent license', licSoon: 'The license ends in {n} days — contact BokerNet to renew', sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
     }
   };
   for (var L21 in D21) { for (var k21 in D21[L21]) { D[L21][k21] = D21[L21][k21]; } }
@@ -1012,6 +1012,14 @@
   function lvl(score) { return score >= 60 ? ['High', 'var(--crit)', t('lvHigh')] : (score >= 25 ? ['Medium', 'var(--warn)', t('lvMed')] : ['Low', 'var(--ok)', t('lvLow')]); }
   function hhmm(s) { s = String(s || ''); var d = s.slice(0, 10), today = new Date(), td = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2); return (d === td ? '' : s.slice(5, 10) + ' ') + s.slice(11, 16); }
 
+  // coloured severity glyphs of the design: red shield, amber triangle, blue info disc
+  function sevIcon(k) {
+    var sv = svgEl('svg', { viewBox: '0 0 34 34', 'aria-hidden': 'true' }), w = el('span', { cls: 'si' }, sv);
+    if (k === 'c') { sv.appendChild(svgEl('path', { d: 'M17 2.5 29 7v9.2c0 7.3-5.1 12.6-12 15.3C10.1 28.8 5 23.5 5 16.2V7z', fill: '#FF4D5E' })); sv.appendChild(svgEl('path', { d: 'M13 12.5l8 8M21 12.5l-8 8', stroke: '#fff', 'stroke-width': '2.6', 'stroke-linecap': 'round' })); }
+    else if (k === 'w') { sv.appendChild(svgEl('path', { d: 'M17 3.5 32 29.5H2z', fill: '#FFB020', 'stroke-linejoin': 'round' })); sv.appendChild(svgEl('path', { d: 'M17 12v8.5M17 24.6v.2', stroke: '#1A1206', 'stroke-width': '2.8', 'stroke-linecap': 'round' })); }
+    else { sv.appendChild(svgEl('circle', { cx: 17, cy: 17, r: 14, fill: '#3D8BFF' })); sv.appendChild(svgEl('path', { d: 'M17 15.5v8M17 10.6v.2', stroke: '#fff', 'stroke-width': '2.8', 'stroke-linecap': 'round' })); }
+    return w;
+  }
   function vOverview() {
     var v = clear($('view'));
     v.appendChild(spinner());
@@ -1022,13 +1030,14 @@
       // ---- header: title + severity counters
       function sevChip(cls, n, label, sev) {
         return el('button', { type: 'button', cls: 'sevc ' + cls, onclick: function () { S.ev.sev = '=' + sev; S.ev.cat = ''; S.ev.skip = 0; go('events'); } },
-          el('span', { cls: 'si', text: cls === 'c' ? '!' : (cls === 'w' ? '▲' : 'i') }), el('span', null, el('b', { cls: 'num', text: String(n || 0) }), el('small', { text: label })), el('span', { cls: 'chev', text: S.lang === 'en' ? '›' : '‹' }));
+          sevIcon(cls), el('span', null, el('b', { cls: 'num', text: String(n || 0) }), el('small', { text: label })), el('span', { cls: 'chev', text: S.lang === 'en' ? '›' : '‹' }));
       }
       v.appendChild(el('div', { cls: 'ovh' },
         el('div', { cls: 'ovt' }, el('h1', { text: t('overview') }), el('p', { cls: 'ovsub', text: t('ovLead2') })),
         el('div', { cls: 'sevs' }, sevChip('c', s.crit, t('crit'), 'Critical'), sevChip('w', s.warn, t('warn'), 'Warning'), sevChip('i', s.info, t('info'), 'Info'))));
       var lic = s.license;
       if (!lic.valid) v.appendChild(el('div', { cls: 'flash err', text: t('license') + ': ' + (lic.reason || t('invalid')) }));
+      else if (!lic.permanent && lic.daysLeft !== null && lic.daysLeft !== undefined && lic.daysLeft <= 30) v.appendChild(el('div', { cls: 'flash err', text: t('licSoon').replace('{n}', lic.daysLeft) + (lic.expiry ? ' (' + licDate(lic.expiry) + ')' : '') }));
 
       // ---- row 1: identity · computers · login alerts · email
       var r1 = el('div', { cls: 'dgrid g4' }); v.appendChild(r1);
@@ -1141,6 +1150,8 @@
       });
     }).catch(fail);
   }
+  // license date in the reader's calendar (Persian: Solar Hijri)
+  function licDate(x) { try { var d = new Date(String(x).slice(0, 10) + 'T12:00:00'); if (isNaN(d)) return x; return S.lang === 'en' ? String(x).slice(0, 10) : d.toLocaleDateString('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' }); } catch (e) { return x; } }
   // rail footer: system status + version (green = engine running with a valid license)
   function setRailStatus(s) {
     var b = $('sysStat'); if (!b) return;
@@ -1148,6 +1159,8 @@
     var lic = s && s.license && !s.license.valid;
     clear(b); b.className = 'sys ' + (lic ? 'bad' : (ok ? 'ok' : 'warn'));
     b.appendChild(el('div', { cls: 'sl' }, el('i'), el('span', { text: lic ? t('sysLic') : t('sysOnline') })));
+    var L = s && s.license, dl = L && L.daysLeft;
+    if (L && L.valid) b.appendChild(el('div', { cls: 'slic' + (dl !== null && dl !== undefined && dl <= 30 ? ' soon' : ''), title: L.expiry || '' }, L.permanent ? t('licPermShort') : (t('licLeft').replace('{n}', dl) + (L.expiry ? ' · ' + licDate(L.expiry) : ''))));
     b.appendChild(el('div', { cls: 'sv num', text: 'v' + ((S.meta && S.meta.version) || '') }));
   }
 
