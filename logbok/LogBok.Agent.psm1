@@ -1193,6 +1193,101 @@ function Set-LogBokServerAddress {
 }
 
 # --- console actions (whitelisted types only) ------------------------------
+# ==========================================================================
+#  EDR: process telemetry, process-tree response, file quarantine (agent side)
+# ==========================================================================
+# the full command line in process-creation events (4688) — needed to read a process tree
+function Enable-LogBokCmdLineAudit {
+    try {
+        $k = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit'
+        if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }
+        $v = (Get-ItemProperty -Path $k -Name 'ProcessCreationIncludeCmdLine_Enabled' -ErrorAction SilentlyContinue).ProcessCreationIncludeCmdLine_Enabled
+        if ($v -ne 1) { New-ItemProperty -Path $k -Name 'ProcessCreationIncludeCmdLine_Enabled' -Value 1 -PropertyType DWord -Force | Out-Null }
+    } catch { }
+}
+$script:LBCriticalProcs = @('system', 'idle', 'smss', 'csrss', 'wininit', 'winlogon', 'services', 'lsass', 'lsaiso', 'svchost', 'fontdrvhost', 'dwm', 'registry', 'memory compression', 'secure system')
+function Get-LogBokQuarantineDir { $d = Join-Path $env:ProgramData 'LogBok\Quarantine'; if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null; try { & icacls.exe $d /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null } catch { } }; return $d }
+function Get-LogBokFileSha256 { param([string]$Path) try { $s = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite,Delete'); try { $h = [Security.Cryptography.SHA256]::Create(); return (-join ($h.ComputeHash($s) | ForEach-Object { $_.ToString('x2') })) } finally { $s.Dispose() } } catch { return '' } }
+# running processes with parent, command line, file hash and signer (hash/signer cached per file version)
+function Get-LogBokProcessSnapshot {
+    param([string]$InstallDir)
+    $cf = Join-Path $InstallDir 'state\hash-cache.json'
+    $cache = @{}; if (Test-Path $cf) { try { (Get-Content $cf -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $cache[$_.Name] = $_.Value } } catch { } }
+    $win = $env:SystemRoot.ToLowerInvariant(); $seen = @{}; $out = @()
+    $procs = @(Get-CimInstance Win32_Process -ErrorAction Stop | Select-Object -First 700)
+    foreach ($p in $procs) {
+        $x = [string]$p.ExecutablePath; $h = ''; $sg = ''; $pub = ''
+        if ($x -and (Test-Path -LiteralPath $x)) {
+            try {
+                $fi = Get-Item -LiteralPath $x -ErrorAction Stop; $ck = '{0}|{1}|{2}' -f $x.ToLowerInvariant(), $fi.Length, $fi.LastWriteTimeUtc.Ticks
+                if ($cache.ContainsKey($ck)) { $c = $cache[$ck]; $h = [string]$c.h; $sg = [string]$c.s; $pub = [string]$c.p }
+                else {
+                    $h = Get-LogBokFileSha256 -Path $x
+                    # signer: Windows' own folder is trusted by location (fast); everything else is checked
+                    if ($x.ToLowerInvariant().StartsWith($win)) { $sg = 'Windows' }
+                    else { try { $a = Get-AuthenticodeSignature -LiteralPath $x -ErrorAction Stop; $sg = [string]$a.Status; if ($a.SignerCertificate) { $pub = ([string]$a.SignerCertificate.Subject -replace '^.*?CN=("?)([^,"]+)\1.*$', '$2') } } catch { $sg = 'Unknown' } }
+                    $cache[$ck] = @{ h = $h; s = $sg; p = $pub }
+                }
+                $seen[$ck] = $true
+            } catch { }
+        }
+        $st = ''; try { if ($p.CreationDate) { $st = ([datetime]$p.CreationDate).ToUniversalTime().ToString('o') } } catch { }
+        $cl = [string]$p.CommandLine; if ($cl.Length -gt 400) { $cl = $cl.Substring(0, 400) }
+        $out += [ordered]@{ p = [int]$p.ProcessId; pp = [int]$p.ParentProcessId; n = [string]$p.Name; x = $x; c = $cl; s = $st; h = $h; sg = $sg; pub = $pub }
+    }
+    # keep the cache to the files seen now (plus a margin) so it never grows forever
+    $keep = @{}; foreach ($k in $cache.Keys) { if ($seen.ContainsKey($k) -or $keep.Count -lt 800) { $keep[$k] = $cache[$k] } }
+    try { (ConvertTo-Json -InputObject $keep -Depth 3 -Compress) | Set-Content -Path $cf -Encoding UTF8 } catch { }
+    return $out
+}
+function Get-LogBokQuarantineList {
+    $d = Get-LogBokQuarantineDir; $o = @()
+    foreach ($m in @(Get-ChildItem -LiteralPath $d -Filter '*.json' -File -ErrorAction SilentlyContinue)) { try { $o += (Get-Content -LiteralPath $m.FullName -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { } }
+    return @($o | Sort-Object { [string]$_.at } -Descending | Select-Object -First 200)
+}
+# stop a process, optionally with every process it started (children first)
+function Stop-LogBokProcessTree {
+    param([int]$ProcessId, [switch]$Tree)
+    if ($ProcessId -le 4 -or $ProcessId -eq $PID) { throw 'this process cannot be stopped' }
+    $all = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+    $me = $all | Where-Object { [int]$_.ProcessId -eq $ProcessId } | Select-Object -First 1
+    if (-not $me) { throw "process $ProcessId is not running" }
+    if ($script:LBCriticalProcs -contains (([string]$me.Name) -replace '\.exe$', '').ToLowerInvariant()) { throw "$($me.Name) is a critical Windows process and is never stopped" }
+    $ids = New-Object System.Collections.Generic.List[int]; $ids.Add($ProcessId)
+    if ($Tree) { $i = 0; while ($i -lt $ids.Count) { $cur = $ids[$i]; foreach ($c in $all) { if ([int]$c.ParentProcessId -eq $cur -and [int]$c.ProcessId -ne $cur -and -not $ids.Contains([int]$c.ProcessId) -and $script:LBCriticalProcs -notcontains (([string]$c.Name) -replace '\.exe$', '').ToLowerInvariant()) { $ids.Add([int]$c.ProcessId) } }; $i++ } }
+    $done = @(); $ids.Reverse()
+    foreach ($id in $ids) { try { Stop-Process -Id $id -Force -ErrorAction Stop; $n = ($all | Where-Object { [int]$_.ProcessId -eq $id } | Select-Object -First 1).Name; $done += "$n($id)" } catch { } }
+    return ('stopped: ' + $(if ($done.Count) { $done -join ', ' } else { 'nothing (already gone)' }))
+}
+# move a file into the locked quarantine folder (its processes are stopped first); restorable by hash
+function Move-LogBokToQuarantine {
+    param([string]$Path)
+    if (-not $Path -or -not [IO.Path]::IsPathRooted($Path)) { throw 'a full file path is required' }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "file not found: $Path" }
+    $low = $Path.ToLowerInvariant(); $win = $env:SystemRoot.ToLowerInvariant()
+    if ($low.StartsWith((Join-Path $win 'system32').ToLowerInvariant()) -or $low.StartsWith((Join-Path $win 'syswow64').ToLowerInvariant()) -or $low.StartsWith($env:ProgramData.ToLowerInvariant() + '\logbok') -or $low.StartsWith(${env:ProgramFiles}.ToLowerInvariant() + '\bokernet')) { throw 'system and LogBok files are never quarantined' }
+    $sha = Get-LogBokFileSha256 -Path $Path; if (-not $sha) { throw 'the file cannot be read' }
+    foreach ($p in @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { [string]$_.ExecutablePath -and ([string]$_.ExecutablePath).ToLowerInvariant() -eq $low })) { try { Stop-Process -Id ([int]$p.ProcessId) -Force -ErrorAction Stop } catch { } }
+    Start-Sleep -Milliseconds 400
+    $d = Get-LogBokQuarantineDir; $dst = Join-Path $d ($sha + '.qbin')
+    $size = (Get-Item -LiteralPath $Path).Length
+    if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $Path -Force -ErrorAction Stop } else { Move-Item -LiteralPath $Path -Destination $dst -Force -ErrorAction Stop }
+    $meta = [ordered]@{ sha256 = $sha; path = $Path; size = $size; at = (Get-Date).ToUniversalTime().ToString('o'); host = $env:COMPUTERNAME }
+    (ConvertTo-Json -InputObject $meta) | Set-Content -LiteralPath (Join-Path $d ($sha + '.json')) -Encoding UTF8
+    return "quarantined $Path (sha256 $sha)"
+}
+function Restore-LogBokFromQuarantine {
+    param([string]$Sha256)
+    if ($Sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'invalid hash' }
+    $d = Get-LogBokQuarantineDir; $bin = Join-Path $d ($Sha256.ToLowerInvariant() + '.qbin'); $mj = Join-Path $d ($Sha256.ToLowerInvariant() + '.json')
+    if (-not (Test-Path -LiteralPath $bin) -or -not (Test-Path -LiteralPath $mj)) { throw 'not in quarantine' }
+    $m = Get-Content -LiteralPath $mj -Raw -Encoding UTF8 | ConvertFrom-Json
+    $dir = Split-Path -Parent ([string]$m.path); if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    Move-Item -LiteralPath $bin -Destination ([string]$m.path) -Force -ErrorAction Stop
+    Remove-Item -LiteralPath $mj -Force -ErrorAction SilentlyContinue
+    return "restored $($m.path)"
+}
+
 function Invoke-LogBokAction {
     param([string]$InstallDir, $Action, $Info)
     $t = [string]$Action.type; $a = $Action.args
@@ -1204,6 +1299,11 @@ function Invoke-LogBokAction {
             'defender-update' { Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList '-NoProfile -WindowStyle Hidden -Command Update-MpSignature' -WindowStyle Hidden; return @{ ok = $true; out = 'Defender signature update started' } }
             'isolate'         { if (-not @($Info.CollectorIps).Count) { throw 'server IP unknown - isolation refused (the agent would lose contact)' }; Import-LogBokCore $InstallDir; Import-Module (Join-Path $InstallDir 'LogBok.Firewall.psm1') -Force -DisableNameChecking; $ip = @($Info.CollectorIps)[0]; Invoke-LogBokIsolate -AllowIp $ip -InstallDir $InstallDir; return @{ ok = $true; out = "isolated (only $ip allowed)" } }
             'unisolate'       { Import-Module (Join-Path $InstallDir 'LogBok.Firewall.psm1') -Force -DisableNameChecking; Restore-LogBokIsolate -InstallDir $InstallDir; return @{ ok = $true; out = 'isolation lifted' } }
+            'kill-pid'        { return @{ ok = $true; out = (Stop-LogBokProcessTree -ProcessId ([int]$a.pid) -Tree:([bool]$a.tree)) } }
+            'quarantine-file' { $o = Move-LogBokToQuarantine -Path ([string]$a.path); Set-Content -Path (Join-Path $InstallDir 'state\proc-due.flag') -Value '1'; return @{ ok = $true; out = $o } }
+            'restore-file'    { $o = Restore-LogBokFromQuarantine -Sha256 ([string]$a.sha256); Set-Content -Path (Join-Path $InstallDir 'state\proc-due.flag') -Value '1'; return @{ ok = $true; out = $o } }
+            'scan-file'       { $pth = [string]$a.path; if (-not $pth -or -not [IO.Path]::IsPathRooted($pth)) { throw 'a full path is required' }; $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'; Start-Process -FilePath $ps -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', ('Start-MpScan -ScanType CustomScan -ScanPath ''{0}''' -f ($pth -replace "'", "''"))) -WindowStyle Hidden; return @{ ok = $true; out = "Defender scan started: $pth" } }
+            'collect-processes' { Set-Content -Path (Join-Path $InstallDir 'state\proc-due.flag') -Value '1'; return @{ ok = $true; out = 'process list will be sent now' } }
             'kill-process'    { $n = [string]$a.name; if ($n -notmatch '^[A-Za-z0-9_.\- ]{1,80}$') { throw 'invalid name' }; $ps = @(Get-Process -Name $n -ErrorAction SilentlyContinue); $ps | Stop-Process -Force -ErrorAction SilentlyContinue; return @{ ok = $true; out = ("{0} process(es) stopped" -f $ps.Count) } }
             'block-ip'        { Import-LogBokCore $InstallDir; Import-Module (Join-Path $InstallDir 'LogBok.Guard.psm1') -Force -DisableNameChecking; [void](Add-LBGuardManualBlock -InstallDir $InstallDir -Ip ([string]$a.ip) -Minutes ([int]$a.minutes)); return @{ ok = $true; out = "blocked $($a.ip)" } }
             'unblock-ip'      { Import-LogBokCore $InstallDir; Import-Module (Join-Path $InstallDir 'LogBok.Guard.psm1') -Force -DisableNameChecking; [void](Remove-LBGuardBlocks -InstallDir $InstallDir -Ip @([string]$a.ip) -ResetHistory); return @{ ok = $true; out = "unblocked $($a.ip)" } }
@@ -1322,6 +1422,12 @@ function Invoke-LogBokControl {
     $if = Join-Path $sd 'inventory-last.txt'; $flag = Join-Path $sd 'inventory-due.flag'
     $idue = (Test-Path $flag) -or -not (Test-Path $if) -or ((Get-Item $if -ErrorAction SilentlyContinue).LastWriteTime -lt (Get-Date).AddHours(-12))
     if ($idue) { try { $body.inv = Get-LogBokInventory; Set-Content $if (Get-Date).ToString('o'); Remove-Item $flag -Force -ErrorAction SilentlyContinue } catch { } }
+    # EDR: running processes (tree, hash, signer) every 15 min or on request, with the quarantine list
+    $prf = Join-Path $sd 'proc-last.txt'; $pfg = Join-Path $sd 'proc-due.flag'
+    if ((Test-Path $pfg) -or -not (Test-Path $prf) -or ((Get-Item $prf -ErrorAction SilentlyContinue).LastWriteTime -lt (Get-Date).AddMinutes(-15))) {
+        try { $body.proc = @(Get-LogBokProcessSnapshot -InstallDir $InstallDir); $body.quar = @(Get-LogBokQuarantineList); Set-Content $prf (Get-Date).ToString('o'); Remove-Item $pfg -Force -ErrorAction SilentlyContinue } catch { }
+        Enable-LogBokCmdLineAudit
+    }
     $pol = $null; $pjf = Join-Path $sd 'policy.json'
     if (Test-Path $pjf) { try { $pol = Get-Content $pjf -Raw -Encoding UTF8 | ConvertFrom-Json } catch { } }
     if ($pol) { $body.pr = [string]$pol.status.rev; $body.ps = $pol.status }
