@@ -655,7 +655,7 @@ function Invoke-LBWebApi {
             latest=@($(foreach ($x in $st.Latest) { ConvertTo-LBWebFinding -r $x -Lang $lang -Notes $ntsS }))
             guard=[ordered]@{ blocked=$(if ($g) { $g.Blocked } else { 0 }); permanent=$(if ($g) { $g.Permanent } else { 0 }); watching=$(if ($g) { $g.Watching } else { 0 }); rules=$(if ($g) { $g.Rules } else { 0 }) }
             conn=[ordered]@{ targets=$ct; down=$cf; warn=$cw; generated=$(if ($conn) { [string]$conn.Generated } else { '' }) }
-            license=[ordered]@{ valid=[bool]$lic.Valid; company=[string]$lic.Company; permanent=[bool]$lic.Permanent; expiry=[string]$lic.Expiry; reason=(Format-LBTxt -s (Get-LogBokLicenseReasonText -License $lic -Lang 'both') -Lang $lang); device=[string]$lic.DeviceCode }
+            license=[ordered]@{ valid=[bool]$lic.Valid; company=[string]$lic.Company; permanent=[bool]$lic.Permanent; expiry=[string]$lic.Expiry; daysLeft=$(if ($null -ne $lic.DaysLeft) { [int]$lic.DaysLeft } else { $null }); reason=(Format-LBTxt -s (Get-LogBokLicenseReasonText -License $lic -Lang 'both') -Lang $lang); device=[string]$lic.DeviceCode }
             sessionsLive=$(try { $nS = 0; try { $nS += @(Get-LBLiveSessions | Where-Object { $_.st -eq 'Active' }).Count } catch { }; $pdS = Join-Path $sd 'push'; if (Test-Path $pdS) { foreach ($fS in @(Get-ChildItem $pdS -Recurse -Filter 'sessions.json' -File -ErrorAction SilentlyContinue)) { if ($fS.LastWriteTime -gt (Get-Date).AddMinutes(-10)) { try { $nS += @((Get-Content $fS.FullName -Raw | ConvertFrom-Json).Data | Where-Object { $_ -and $_.st -eq 'Active' }).Count } catch { } } } }; $nS } catch { 0 })
             incidentsOpen=$inc.Count; jobsOn=@($jobs | Where-Object Enabled).Count; jobsTotal=$jobs.Count; jobsBad=$jobsBad; sources=$srcN
         }
