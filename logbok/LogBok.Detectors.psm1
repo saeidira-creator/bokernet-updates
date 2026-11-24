@@ -390,6 +390,8 @@ function Invoke-DetectIISAttack {
         # مسیر لاگ محلی یا UNC
         $base = $Config.IISLogPath
         if ($srv -ne 'localhost' -and $srv -ne $env:COMPUTERNAME) {
+            # بدونِ ایجنت و با دسترسیِ راه‌دورِ خاموش، هرگز SMB (445) به سیستمِ دیگر باز نمی‌شود | no SMB to other computers unless remote access is on
+            if ((Get-Command Test-LBRemoteAccessAllowed -ErrorAction SilentlyContinue) -and -not (Test-LBRemoteAccessAllowed -Config $Config)) { continue }
             $base = "\\$srv\" + ($base -replace ':','$')
         }
         if (-not (Test-Path $base)) { continue }
@@ -440,7 +442,10 @@ function Invoke-DetectFtpAttack {
     foreach ($srv in @($Config.FtpServers)) {
         if (-not $srv) { continue }
         $base = if ($Config.FtpLogPath) { $Config.FtpLogPath } else { 'C:\inetpub\logs\LogFiles' }
-        if ($srv -ne 'localhost' -and $srv -ne $env:COMPUTERNAME) { $base = "\\$srv\" + ($base -replace ':','$') }
+        if ($srv -ne 'localhost' -and $srv -ne $env:COMPUTERNAME) {
+            if ((Get-Command Test-LBRemoteAccessAllowed -ErrorAction SilentlyContinue) -and -not (Test-LBRemoteAccessAllowed -Config $Config)) { continue }
+            $base = "\\$srv\" + ($base -replace ':','$')
+        }
         if (-not (Test-Path $base)) { continue }
         $logs = Get-ChildItem -Path $base -Recurse -Filter '*.log' -ErrorAction SilentlyContinue |
                 Where-Object { $_.FullName -match 'FTPSVC' -and $_.LastWriteTime -ge $Start.AddHours(-1) }
@@ -919,46 +924,138 @@ function Invoke-DetectAppControl {
     return $f
 }
 
+# ------------------------------------------------ EDR: running processes --
+# reads the process snapshots the agents send (every 15 min): known-malicious hashes (IOC), unsigned programs
+# started from user folders, tampered signed files, and Office/PDF apps that launch a shell or script engine.
+# An IOC match is answered automatically (kill the process tree + quarantine the file) unless Edr.AutoRespondIoc = $false.
+function Get-LBIocHashes {
+    param([string]$StateDir)
+    $h = @{}
+    foreach ($f in @((Join-Path $StateDir 'ioc-hashes.txt'), (Join-Path $StateDir 'intel\ioc-hashes.txt'))) {
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+        foreach ($ln in @(Get-Content -LiteralPath $f -Encoding UTF8 -ErrorAction SilentlyContinue)) {
+            $t = ([string]$ln).Trim(); if (-not $t -or $t.StartsWith('#')) { continue }
+            $p = $t -split '\s+', 2; $k = $p[0].ToLowerInvariant()
+            if ($k -match '^[a-f0-9]{64}$') { $h[$k] = $(if ($p.Count -gt 1) { ($p[1] -replace '^#\s*', '').Trim() } else { '' }) }
+        }
+    }
+    return $h
+}
+function Invoke-DetectProcesses {
+    param($Config, [datetime]$Start)
+    $f = @()
+    $sd = Get-LBStateDir -Config $Config
+    $root = Join-Path $sd 'push'; if (-not (Test-Path -LiteralPath $root)) { return $f }
+    $ioc = Get-LBIocHashes -StateDir $sd
+    $seenF = Join-Path $sd 'edr-seen.json'; $seen = @{}
+    if (Test-Path $seenF) { try { (Get-Content $seenF -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $seen[$_.Name] = [string]$_.Value } } catch { } }
+    $now = Get-Date; $changed = $false
+    $isNew = { param($k) $v = $seen[$k]; if ($v) { try { if ([datetime]::Parse($v) -gt $now.AddHours(-24)) { return $false } } catch { } }; $seen[$k] = $now.ToString('o'); $script:edrChanged = $true; return $true }
+    $script:edrChanged = $false
+    $userDirs = '\\(AppData\\Local\\Temp|AppData\\Roaming|Downloads|Users\\Public|Windows\\Temp|ProgramData)\\'
+    $office = @('winword', 'excel', 'powerpnt', 'outlook', 'msaccess', 'mspub', 'onenote', 'acrord32', 'acrobat', 'foxitreader')
+    $shells = @('cmd', 'powershell', 'pwsh', 'wscript', 'cscript', 'mshta', 'rundll32', 'regsvr32', 'certutil', 'bitsadmin', 'wmic', 'msbuild', 'installutil')
+    foreach ($dir in @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue)) {
+        $pf = Join-Path $dir.FullName 'processes.json'
+        if (-not (Test-Path -LiteralPath $pf)) { continue }
+        if ((Get-Item -LiteralPath $pf).LastWriteTime -lt $Start.AddMinutes(-20)) { continue }   # nothing new from this computer
+        $snap = $null; try { $snap = Get-Content -LiteralPath $pf -Raw -Encoding UTF8 | ConvertFrom-Json } catch { continue }
+        $hostN = $dir.Name; $procs = @($snap.Data)
+        $byPid = @{}; foreach ($p in $procs) { $byPid[[int]$p.p] = $p }
+        foreach ($p in $procs) {
+            $h = ([string]$p.h).ToLowerInvariant(); $x = [string]$p.x; $nm = ([string]$p.n -replace '\.exe$', '').ToLowerInvariant()
+            $par = $byPid[[int]$p.pp]; $parN = if ($par) { ([string]$par.n -replace '\.exe$', '').ToLowerInvariant() } else { '' }
+            $det = ("سیستم | computer: {0}`nبرنامه | program: {1}`nمسیر | path: {2}`nPID: {3}  ·  والد | parent: {4} ({5})`nخطِ فرمان | command line: {6}`nSHA-256: {7}`nامضا | signature: {8} {9}" -f $hostN, $p.n, $x, $p.p, $(if ($par) { $par.n } else { '?' }), $p.pp, $p.c, $h, $p.sg, $p.pub)
+            if ($h -and $ioc.ContainsKey($h)) {
+                if (& $isNew "ioc|$hostN|$h") {
+                    $resp = ''
+                    if ($null -eq $Config.Edr -or $Config.Edr.AutoRespondIoc -ne $false) {
+                        try {
+                            if (-not (Get-Command Add-LBAgentAction -ErrorAction SilentlyContinue)) { Import-Module (Join-Path $PSScriptRoot 'LogBok.Endpoint.psm1') -DisableNameChecking -Global -ErrorAction Stop }
+                            [void](Add-LBAgentAction -StateDir $sd -Hosts @($hostN) -Type 'kill-pid' -Arguments @{ pid = [int]$p.p; tree = $true } -By 'LogBok (auto)')
+                            if ($x) { [void](Add-LBAgentAction -StateDir $sd -Hosts @($hostN) -Type 'quarantine-file' -Arguments @{ path = $x } -By 'LogBok (auto)') }
+                            $resp = "`nپاسخِ خودکار | automatic response: توقفِ درختِ پردازه و قرنطینهٔ فایل | process tree stopped and file quarantined"
+                        } catch { $resp = "`nپاسخِ خودکار ناموفق | automatic response failed: $($_.Exception.Message)" }
+                    }
+                    $f += New-Finding -Category 'Malware' -Severity 'Critical' -Machine $hostN -Time $now `
+                        -Title ("برنامهٔ مخربِ شناخته‌شده در حالِ اجرا — {0} | known-malicious program running — {0}{1}" -f $p.n, $(if ($ioc[$h]) { " ($($ioc[$h]))" } else { '' })) `
+                        -Details ($det + $resp) -Key ("IOC|$hostN|$h")
+                }
+                continue
+            }
+            if ([string]$p.sg -eq 'HashMismatch') {
+                if (& $isNew "tamper|$hostN|$h") { $f += New-Finding -Category 'Malware' -Severity 'Critical' -Machine $hostN -Time $now -Title ("فایلِ امضاشده دست‌کاری شده — {0} | signed file was tampered with — {0}" -f $p.n) -Details $det -Key ("SIGBAD|$hostN|$h") }
+                continue
+            }
+            if ($office -contains $parN -and $shells -contains $nm) {
+                if (& $isNew "office|$hostN|$($p.p)") { $f += New-Finding -Category 'Behavior' -Severity 'Critical' -Machine $hostN -Time $now -Title ("{0} یک {1} اجرا کرد (رفتارِ ماکروی مخرب) | {0} started {1} (malicious-macro behaviour)" -f $par.n, $p.n) -Details $det -Key ("OFFICE|$hostN|$($p.p)") }
+                continue
+            }
+            if ($x -and $x -match $userDirs -and @('NotSigned', 'NotTrusted', 'UnknownError', 'Unknown') -contains [string]$p.sg) {
+                if (& $isNew "unsigned|$hostN|$h") { $f += New-Finding -Category 'Behavior' -Severity 'Warning' -Machine $hostN -Time $now -Title ("برنامهٔ بدونِ امضا از پوشهٔ کاربر اجرا شده — {0} | unsigned program running from a user folder — {0}" -f $p.n) -Details $det -Key ("UNSIGNED|$hostN|$h") }
+            }
+        }
+    }
+    if ($script:edrChanged) {
+        $keep = [ordered]@{}; foreach ($k in $seen.Keys) { try { if ([datetime]::Parse($seen[$k]) -gt $now.AddDays(-3)) { $keep[$k] = $seen[$k] } } catch { } }
+        try { [IO.File]::WriteAllText($seenF, (ConvertTo-Json -InputObject $keep), (New-Object Text.UTF8Encoding($false))) } catch { }
+    }
+    return $f
+}
+
+# هر آشکارساز جدا اجرا می‌شود: خطای یکی (مثلاً «Access is denied» روی یک سیستم) بقیه را از کار نمی‌اندازد،
+# و در لاگ نامِ همان آشکارساز و خطِ کد می‌آید. | each detector runs isolated: one failing (e.g. "Access is denied")
+# no longer stops all detection, and the log names the detector and the line.
+function Invoke-LBDetectorSafe {
+    param([string]$Name, [scriptblock]$Body, $Config)
+    try { return @(& $Body) }
+    catch {
+        $where = ''; try { $ii = $_.InvocationInfo; if ($ii) { $where = ' @ ' + [IO.Path]::GetFileName([string]$ii.ScriptName) + ':' + $ii.ScriptLineNumber } } catch { }
+        try { Write-LogBokLog -Message ("آشکارساز {0} خطا داد (بقیه ادامه دادند) | detector {0} failed (others continued): {1}{2}" -f $Name, $_.Exception.Message, $where) -Level WARN -Config $Config } catch { }
+        return @()
+    }
+}
 function Invoke-LogBokDetectors {
     param($Config,[datetime]$Start)
     $all = @()
     $en = $Config.Enabled
-    if ($en.Firewall)     { $all += Invoke-DetectFirewall        -Config $Config -Start $Start }
-    if ($en.Defender)     { $all += Invoke-DetectDefender        -Config $Config -Start $Start }
-    if ($en.MassFile)     { $all += Invoke-DetectMassFile        -Config $Config -Start $Start }
-    if ($en.ActiveDir)    { $all += Invoke-DetectActiveDirectory -Config $Config -Start $Start }
-    if ($en.BruteForce)   { $all += Invoke-DetectBruteForce      -Config $Config -Start $Start }
-    if ($en.SqlLogin)     { $all += Invoke-DetectSqlLogin        -Config $Config -Start $Start }
-    if ($en.IISAttack)    { $all += Invoke-DetectIISAttack       -Config $Config -Start $Start }
-    if ($en.FtpAttack)    { $all += Invoke-DetectFtpAttack       -Config $Config -Start $Start }
-    if ($en.ServiceState) { $all += Invoke-DetectServiceState    -Config $Config -Start $Start }
-    if ($en.Tamper -ne $false) { $all += Invoke-DetectTamper     -Config $Config -Start $Start }
-    if ($en.Ransomware -ne $false) { $all += Invoke-DetectRansomware -Config $Config -Start $Start }
-    if ($en.FileScan -ne $false) { $all += Invoke-DetectFileSuspicion -Config $Config -Start $Start }
-    if ($en.Policy -ne $false)   { $all += Invoke-DetectPolicy        -Config $Config -Start $Start }
-    if ($en.Scan -ne $false)     { $all += Invoke-DetectVuln          -Config $Config -Start $Start }
-    if ($en.Tracking -ne $false) { $all += Invoke-DetectTracking      -Config $Config -Start $Start }
-    if ($en.FwGovernance -ne $false) { $all += Invoke-DetectFwGovernance -Config $Config -Start $Start }
-    if ($en.FIM -ne $false)      { $all += Invoke-DetectFim           -Config $Config -Start $Start }
-    if ($en.Guard -ne $false)    { $all += Invoke-DetectGuard         -Config $Config -Start $Start }
-    if ($en.ADAttack -ne $false) { $all += Invoke-DetectADAttacks     -Config $Config -Start $Start }
-    if ($en.GPO -ne $false)      { $all += Invoke-DetectGPO           -Config $Config -Start $Start }
-    if ($en.FileACL -ne $false)  { $all += Invoke-DetectFileACL       -Config $Config -Start $Start }
-    if ($en.MemberServer -ne $false) { $all += Invoke-DetectMemberServer -Config $Config -Start $Start }
+    if ($en.Firewall)     { $all += Invoke-LBDetectorSafe 'Invoke-DetectFirewall' { Invoke-DetectFirewall -Config $Config -Start $Start } $Config }
+    if ($en.Defender)     { $all += Invoke-LBDetectorSafe 'Invoke-DetectDefender' { Invoke-DetectDefender -Config $Config -Start $Start } $Config }
+    if ($en.MassFile)     { $all += Invoke-LBDetectorSafe 'Invoke-DetectMassFile' { Invoke-DetectMassFile -Config $Config -Start $Start } $Config }
+    if ($en.ActiveDir)    { $all += Invoke-LBDetectorSafe 'Invoke-DetectActiveDirectory' { Invoke-DetectActiveDirectory -Config $Config -Start $Start } $Config }
+    if ($en.BruteForce)   { $all += Invoke-LBDetectorSafe 'Invoke-DetectBruteForce' { Invoke-DetectBruteForce -Config $Config -Start $Start } $Config }
+    if ($en.SqlLogin)     { $all += Invoke-LBDetectorSafe 'Invoke-DetectSqlLogin' { Invoke-DetectSqlLogin -Config $Config -Start $Start } $Config }
+    if ($en.IISAttack)    { $all += Invoke-LBDetectorSafe 'Invoke-DetectIISAttack' { Invoke-DetectIISAttack -Config $Config -Start $Start } $Config }
+    if ($en.FtpAttack)    { $all += Invoke-LBDetectorSafe 'Invoke-DetectFtpAttack' { Invoke-DetectFtpAttack -Config $Config -Start $Start } $Config }
+    if ($en.ServiceState) { $all += Invoke-LBDetectorSafe 'Invoke-DetectServiceState' { Invoke-DetectServiceState -Config $Config -Start $Start } $Config }
+    if ($en.Tamper -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectTamper' { Invoke-DetectTamper -Config $Config -Start $Start } $Config }
+    if ($en.Ransomware -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectRansomware' { Invoke-DetectRansomware -Config $Config -Start $Start } $Config }
+    if ($en.FileScan -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectFileSuspicion' { Invoke-DetectFileSuspicion -Config $Config -Start $Start } $Config }
+    if ($en.Policy -ne $false)   { $all += Invoke-LBDetectorSafe 'Invoke-DetectPolicy' { Invoke-DetectPolicy -Config $Config -Start $Start } $Config }
+    if ($en.Scan -ne $false)     { $all += Invoke-LBDetectorSafe 'Invoke-DetectVuln' { Invoke-DetectVuln -Config $Config -Start $Start } $Config }
+    if ($en.Tracking -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectTracking' { Invoke-DetectTracking -Config $Config -Start $Start } $Config }
+    if ($en.FwGovernance -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectFwGovernance' { Invoke-DetectFwGovernance -Config $Config -Start $Start } $Config }
+    if ($en.FIM -ne $false)      { $all += Invoke-LBDetectorSafe 'Invoke-DetectFim' { Invoke-DetectFim -Config $Config -Start $Start } $Config }
+    if ($en.Guard -ne $false)    { $all += Invoke-LBDetectorSafe 'Invoke-DetectGuard' { Invoke-DetectGuard -Config $Config -Start $Start } $Config }
+    if ($en.ADAttack -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectADAttacks' { Invoke-DetectADAttacks -Config $Config -Start $Start } $Config }
+    if ($en.GPO -ne $false)      { $all += Invoke-LBDetectorSafe 'Invoke-DetectGPO' { Invoke-DetectGPO -Config $Config -Start $Start } $Config }
+    if ($en.FileACL -ne $false)  { $all += Invoke-LBDetectorSafe 'Invoke-DetectFileACL' { Invoke-DetectFileACL -Config $Config -Start $Start } $Config }
+    if ($en.MemberServer -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectMemberServer' { Invoke-DetectMemberServer -Config $Config -Start $Start } $Config }
     if ($en.Network -ne $false) {
         try { Import-Module (Join-Path $PSScriptRoot 'LogBok.Syslog.psm1') -DisableNameChecking -ErrorAction Stop
-              $all += Invoke-DetectSyslog -Config $Config -Start $Start } catch {}
+              $all += Invoke-LBDetectorSafe 'Invoke-DetectSyslog' { Invoke-DetectSyslog -Config $Config -Start $Start } $Config } catch {}
     }
     if ($en.AppLog -ne $false) {
         try { Import-Module (Join-Path $PSScriptRoot 'LogBok.AppLogs.psm1') -DisableNameChecking -ErrorAction Stop
-              $all += Invoke-DetectAppLogs -Config $Config -Start $Start } catch {}
+              $all += Invoke-LBDetectorSafe 'Invoke-DetectAppLogs' { Invoke-DetectAppLogs -Config $Config -Start $Start } $Config } catch {}
     }
     if ($en.Custom -ne $false -and @($Config.CustomSources).Count) {
         try { Import-Module (Join-Path $PSScriptRoot 'LogBok.CustomSources.psm1') -DisableNameChecking -ErrorAction Stop
-              $all += Invoke-DetectCustom -Config $Config -Start $Start } catch {}
+              $all += Invoke-LBDetectorSafe 'Invoke-DetectCustom' { Invoke-DetectCustom -Config $Config -Start $Start } $Config } catch {}
     }
-    if ($en.AppControl -ne $false) { $all += Invoke-DetectAppControl -Config $Config -Start $Start }
-    if ($en.Connectivity -ne $false) { $all += Invoke-DetectConnectivity -Config $Config -Start $Start }
+    if ($en.AppControl -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectAppControl' { Invoke-DetectAppControl -Config $Config -Start $Start } $Config }
+    if ($en.Edr -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectProcesses' { Invoke-DetectProcesses -Config $Config -Start $Start } $Config }
+    if ($en.Connectivity -ne $false) { $all += Invoke-LBDetectorSafe 'Invoke-DetectConnectivity' { Invoke-DetectConnectivity -Config $Config -Start $Start } $Config }
     return $all
 }
 
