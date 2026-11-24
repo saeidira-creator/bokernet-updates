@@ -162,6 +162,46 @@ function Publish-LBAgentMirror {
     } catch { }
 }
 
+# ==========================================================================
+#  تمدیدِ خودکارِ لایسنس از فیدِ سازنده | automatic license renewal from the vendor feed
+#  سازنده لایسنسِ تمدیدشده را رمزگذاری‌شده در <feed>/licenses/<id>.lic می‌گذارد.
+#  id و کلید هر دو از «کدِ دستگاهِ» همین سرور ساخته می‌شوند، پس فقط همین سرور پیدایش می‌کند و
+#  بازش می‌کند؛ امضای RSA و قفلِ دستگاه هم مثلِ فعال‌سازیِ دستی بررسی می‌شود.
+#  Only installs a license that is valid for THIS device and expires later than the current one.
+# ==========================================================================
+function Get-LBLicenseFeedId { param([string]$Device) $h = [Security.Cryptography.SHA256]::Create(); try { return (-join ($h.ComputeHash([Text.Encoding]::UTF8.GetBytes('LBLIC-ID|' + $Device.ToUpperInvariant())) | Select-Object -First 16 | ForEach-Object { $_.ToString('x2') })) } finally { $h.Dispose() } }
+function Get-LBLicenseFeedKey { param([string]$Device) $h = [Security.Cryptography.SHA256]::Create(); try { return $h.ComputeHash([Text.Encoding]::UTF8.GetBytes('LBLIC-KEY|' + $Device.ToUpperInvariant())) } finally { $h.Dispose() } }
+function Update-LBLicenseFromFeed {
+    param([string]$InstallDir, $Config, [string]$Feed)
+    try {
+        $sd = Join-Path $InstallDir 'state'
+        $stamp = Join-Path $sd 'license-feed-check.txt'
+        if (Test-Path $stamp) { if ((Get-Item $stamp).LastWriteTime -gt (Get-Date).AddMinutes(-30)) { return } }
+        Set-Content -Path $stamp -Value (Get-Date -Format 's') -Encoding ASCII
+        if (-not (Get-Command Install-LogBokLicense -ErrorAction SilentlyContinue)) { Import-Module (Join-Path $InstallDir 'LogBok.License.psm1') -DisableNameChecking -Global -ErrorAction Stop }
+        $dev = [string](Get-LogBokDeviceCode); if (-not $dev) { return }
+        $tmp = Join-Path $sd 'license-feed.tmp'
+        if (-not (Get-LBFeedToFile -Feed $Feed -Rel ('licenses/' + (Get-LBLicenseFeedId $dev) + '.lic') -OutFile $tmp)) { return }   # nothing for this server
+        $raw = [IO.File]::ReadAllBytes($tmp); Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        if ($raw.Length -lt 48) { return }
+        $aes = [Security.Cryptography.Aes]::Create(); $aes.Mode = 'CBC'; $aes.Padding = 'PKCS7'; $aes.Key = (Get-LBLicenseFeedKey $dev)
+        $aes.IV = $raw[0..15]
+        $plain = $aes.CreateDecryptor().TransformFinalBlock($raw, 16, $raw.Length - 16); $aes.Dispose()
+        $text = [Text.Encoding]::UTF8.GetString($plain)
+        $new = Test-LogBokLicense -Config $Config -Text $text -NoClockUpdate
+        if (-not $new.Valid) { return }
+        $cur = Test-LogBokLicense -Config $Config -Path (Join-Path $InstallDir 'license.key') -NoClockUpdate
+        if ($cur.Valid -and $cur.LicenseId -eq $new.LicenseId) { return }
+        $later = (-not $cur.Valid) -or $new.Permanent -or ($cur.ExpiryDate -and $new.ExpiryDate -and $new.ExpiryDate -gt $cur.ExpiryDate)
+        if (-not $later) { return }
+        $r = Install-LogBokLicense -Text $text -Root $InstallDir -Config $Config
+        if ($r -and $r.Valid) {
+            Write-LBUpdateEvent 9026 Information ("LogBok license renewed automatically on {0}: expires {1}" -f $env:COMPUTERNAME, $(if ($r.Expiry) { $r.Expiry } else { 'never' }))
+            try { Add-Content -Path (Join-Path $InstallDir 'logs\license-renewals.txt') -Value ((Get-Date -Format 's') + ' renewed from feed, expires ' + $r.Expiry) -Encoding UTF8 } catch { }
+        }
+    } catch { }
+}
+
 # فقط یک به‌روزرسانی در هر لحظه (Watchdog، Realtime و کنسول هم‌زمان صدا می‌زنند) | one update at a time (Watchdog, Realtime and the console may call it together)
 function Invoke-LBServerUpdate {
     param([string]$InstallDir, $Config)
@@ -181,6 +221,7 @@ function Invoke-LBServerUpdateCore {
     # engine server installed from an older setup (no feed set): use the official BokerNet feed
     if (-not $feed -and (Test-Path (Join-Path $InstallDir 'engine.flag')) -and -not (Test-Path (Join-Path $InstallDir 'Tools\privatekey.xml'))) { $feed = 'https://update.bokernet.ir/logbok' }
     if (-not $feed) { return $null }
+    Update-LBLicenseFromFeed -InstallDir $InstallDir -Config $Config -Feed $feed
     if ($Config.Update -and $Config.Update.Enabled -eq $false) { return $null }
 
     $sd = Join-Path $InstallDir 'state'
