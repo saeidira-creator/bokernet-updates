@@ -98,6 +98,7 @@ $script:Cat = [ordered]@{
     MailPhish       = @('Email phishing','فیشینگِ ایمیل')
     MailAuth        = @('Email sender auth','احرازِ فرستندهٔ ایمیل')
     MailAttach      = @('Blocked attachment','پیوستِ مسدودشده')
+    Malware         = @('Malicious program (EDR)','برنامهٔ مخرب (EDR)')
 }
 function Get-LBCategoryKeys { return @($script:Cat.Keys) }
 function Get-LBCategoryTitle {
