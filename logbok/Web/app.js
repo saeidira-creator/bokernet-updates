@@ -4147,7 +4147,7 @@
 
     function step1() {
       clear(host); var c = shell();
-      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=8', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
+      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=9', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
       c.appendChild(el('div', { text: isSetup ? t('loginSetupLead') : t('loginLead'), style: 'opacity:.7;margin:4px 0 18px;font-size:13px;line-height:1.7' }));
       var user = inp(t('loginUser'), 'text', ''), pass = inp(t('loginPass'), 'password', ''), pass2 = null, rem = null;
       user.style.cssText = 'width:100%'; pass.style.cssText = 'width:100%';
