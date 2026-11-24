@@ -19,6 +19,7 @@ $script:MitreMap = @{
     ServiceState    = @(@{id='T1489';    n='Service Stop'})
     Tamper          = @(@{id='T1562.001';n='Impair Defenses: Disable or Modify Tools'},@{id='T1489';n='Service Stop'})
     Ransomware      = @(@{id='T1486';    n='Data Encrypted for Impact'})
+    Malware         = @(@{id='T1204.002'; n='User Execution: Malicious File'}, @{id='T1059'; n='Command and Scripting Interpreter'})
     Behavior        = @(@{id='T1078';    n='Valid Accounts (anomalous use)'})
     FileSuspicion   = @(@{id='T1204';    n='User Execution'},@{id='T1036';n='Masquerading'})
     Policy          = @(@{id='T1562';    n='Impair Defenses'})
