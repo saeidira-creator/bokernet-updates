@@ -75,11 +75,32 @@ function Get-LBAgentKeys {
     try { $h = ConvertTo-LBHashtable (Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json); if ($h -is [hashtable]) { return $h } } catch { }
     return @{}
 }
+# نوشتنِ امن و هم‌زمان‌پذیرِ فایل: tmp یکتا + قفلِ نام‌دار + جایگزینیِ اتمی با چند بار تلاش
+# safe concurrent write: unique temp file, a named lock per path, atomic replace with retries
+# (two parallel requests used the same .tmp name -> "Cannot create a file when that file already exists" / ".tmp does not exist")
+function Write-LBFileSafe {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Text)
+    $name = 'Global\LBW-' + ([BitConverter]::ToString([Security.Cryptography.SHA1]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($Path.ToLowerInvariant())))).Replace('-', '').Substring(0, 24)
+    $m = $null; $own = $false
+    try { $m = New-Object Threading.Mutex($false, $name); try { $own = $m.WaitOne(5000) } catch [Threading.AbandonedMutexException] { $own = $true } } catch { }
+    try {
+        $tmp = '{0}.{1}.tmp' -f $Path, ([guid]::NewGuid().ToString('N').Substring(0, 8))
+        [IO.File]::WriteAllText($tmp, $Text, (New-Object Text.UTF8Encoding($false)))
+        for ($i = 0; $i -lt 6; $i++) {
+            try {
+                if ([IO.File]::Exists($Path)) { [IO.File]::Replace($tmp, $Path, $null) } else { [IO.File]::Move($tmp, $Path) }
+                return
+            } catch { Start-Sleep -Milliseconds (40 * ($i + 1)) }
+        }
+        [IO.File]::Copy($tmp, $Path, $true); Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    } finally { if ($m) { if ($own) { try { $m.ReleaseMutex() } catch { } }; $m.Dispose() } }
+}
 function Save-LBAgentKeys {
     param([string]$StateDir, $Keys)
-    $f = Join-Path $StateDir 'agent-keys.json'; $tmp = "$f.tmp"
-    [IO.File]::WriteAllText($tmp, (ConvertTo-Json -InputObject $Keys -Depth 5), (New-Object Text.UTF8Encoding($false)))
-    Move-Item -Path $tmp -Destination $f -Force
+    $f = Join-Path $StateDir 'agent-keys.json'
+    $isNew = -not (Test-Path -LiteralPath $f)
+    Write-LBFileSafe -Path $f -Text (ConvertTo-Json -InputObject $Keys -Depth 5)
+    if (-not $isNew) { return }   # ACL is kept by File.Replace; set it only when the file is created
     try { & icacls.exe $f /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null } catch { }
 }
 function Get-LBAgentSecret { param($Rec) if (-not $Rec -or -not $Rec.Secret) { return $null }; try { return (Unprotect-LBMachine ([string]$Rec.Secret)) } catch { return $null } }
@@ -398,4 +419,4 @@ function Start-LBAgentInServer {
 }
 
 Export-ModuleMember -Function Protect-LBAesBytes, Compress-LBGzip, Get-LBHmacHex, Get-LBAesKey, Unprotect-LBAesBytes, Protect-LBMachine, Unprotect-LBMachine, Get-LBEnrollInfo, Save-LBEnrollInfo, Test-LBEnrollValid, `
-    Get-LBAgentKeys, Save-LBAgentKeys, Get-LBAgentSecret, Get-LBAgentUninstallCode, Set-LBAgentKeyStatus, Save-LBPushBatch, Register-LBPushAgent, Clear-LBPushOld, Invoke-LBInRequest, Start-LBAgentInServer
+    Get-LBAgentKeys, Save-LBAgentKeys, Write-LBFileSafe, Get-LBAgentSecret, Get-LBAgentUninstallCode, Set-LBAgentKeyStatus, Save-LBPushBatch, Register-LBPushAgent, Clear-LBPushOld, Invoke-LBInRequest, Start-LBAgentInServer
