@@ -722,7 +722,7 @@
       dcTimeline: 'روندِ تهدیدها', dcIncident: 'پاسخ به رخداد', dcActive: 'فعال', dcResolved24: 'بسته‌شده (۲۴ ساعت)',
       stDetected: 'شناسایی', stTriage: 'ارزیابی', stResolved: 'حل‌شده',
       dcRecent: 'آخرین هشدارها', dcAlertLog: 'همهٔ رویدادها',
-      licLeft: 'لایسنس: {n} روز مانده', licPermShort: 'لایسنسِ دائمی', licSoon: 'لایسنس {n} روزِ دیگر تمام می‌شود — برای تمدید با بوکرنت تماس بگیرید', sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
+      licLeft: 'لایسنس: {n} روز مانده', licPermShort: 'لایسنسِ دائمی', licSoon: 'لایسنس {n} روزِ دیگر تمام می‌شود — برای تمدید با بوکرنت تماس بگیرید', dcRiskSub: 'امتیازِ ریسکِ سازمان', dcRiskWord: '', dcActiveInc: 'رخدادهای فعال', dcProgress: 'روندِ پاسخ', stContained: 'مهارشده', stEradication: 'پاک‌سازی', stRecovery: 'بازیابی', stNew: 'جدید', stLogged: 'ثبت‌شده', svHigh: 'بالا', svMed: 'متوسط', svLow: 'پایین', svInfo: 'اطلاعاتی', dcAlert: 'هشدار', dcSignins: 'کلِ ورودها', d7: '۷ روزِ گذشته', sysOnline: 'سامانه فعال است', sysLic: 'لایسنس نامعتبر', searchPh: 'جست‌وجو در لاگ‌بوک…', rem360: '۳۶۵ روز'
     },
     en: {
       ovLead2: 'Real-time security posture of your network and systems', severity: 'Severity', category: 'Category',
@@ -736,7 +736,7 @@
       dcTimeline: 'Threat timeline', dcIncident: 'Incident response', dcActive: 'Active', dcResolved24: 'Resolved (24h)',
       stDetected: 'Detected', stTriage: 'Triage', stResolved: 'Resolved',
       dcRecent: 'Recent alerts', dcAlertLog: 'View full alert log',
-      licLeft: 'License: {n} days left', licPermShort: 'Permanent license', licSoon: 'The license ends in {n} days — contact BokerNet to renew', sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
+      licLeft: 'License: {n} days left', licPermShort: 'Permanent license', licSoon: 'The license ends in {n} days — contact BokerNet to renew', dcRiskSub: 'Organisational risk score', dcRiskWord: 'Risk', dcActiveInc: 'Active incidents', dcProgress: 'Response progress', stContained: 'Contained', stEradication: 'Eradication', stRecovery: 'Recovery', stNew: 'New', stLogged: 'Logged', svHigh: 'High', svMed: 'Medium', svLow: 'Low', svInfo: 'Informational', dcAlert: 'Alert', dcSignins: 'Sign-ins', d7: 'Last 7 days', sysOnline: 'System online', sysLic: 'License invalid', searchPh: 'Search in LogBok…', rem360: '365 days'
     }
   };
   for (var L21 in D21) { for (var k21 in D21[L21]) { D[L21][k21] = D21[L21][k21]; } }
@@ -854,7 +854,9 @@
     sun: 'M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4',
     moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
     search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20.5 20.5l-5-5',
-    logout: 'M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h10'
+    logout: 'M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h10',
+    network: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2'
   };
   function ico(name) {
     var ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg');
@@ -991,35 +993,45 @@
   }
 
   // ================================================================== VIEWS
-  // ---------------- overview (v5 dashboard: ring cards, timeline, incident response, recent alerts)
-  function svgEl(tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) n.setAttribute(k, attrs[k]); return n; }
-  function ring(pct, center, sub, color) {
-    pct = Math.max(0, Math.min(100, +pct || 0));
-    var C = 2 * Math.PI * 50, sv = svgEl('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' });
+  // ---------------- overview — laid out like the BokerNet reference design
+  function svgEl(tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) { if (k === 'style') n.style.cssText = attrs[k]; else n.setAttribute(k, attrs[k]); } return n; }   // style via CSSOM: the console's CSP blocks style attributes
+  // ring gauge: segs = [[pct, color], ...] drawn one after another on a dim track; centre number + caption
+  function ring(segs, center, sub, subColor) {
+    if (!Array.isArray(segs)) segs = [[segs, subColor || 'var(--mint)']];
+    var C = 2 * Math.PI * 50, sv = svgEl('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' }), off = 0;
     sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', 'class': 'rt', 'stroke-width': 9 }));
-    sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', stroke: color, 'stroke-width': 9, 'stroke-linecap': 'round',
-      'stroke-dasharray': (C * pct / 100).toFixed(1) + ' ' + C.toFixed(1), transform: 'rotate(-90 60 60)', 'class': 'rf' }));
-    return el('div', { cls: 'ring', style: '--rc:' + color }, sv, el('div', { cls: 'rc' }, el('b', { cls: 'num', text: center }), el('span', { text: sub })));
+    sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 41, fill: 'none', 'class': 'ri', 'stroke-width': 1 }));
+    segs.forEach(function (sg) {
+      var p = Math.max(0, Math.min(100 - off, +sg[0] || 0)); if (!p) return;
+      sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', stroke: sg[1], 'stroke-width': 9, 'stroke-linecap': 'butt',
+        'stroke-dasharray': (C * p / 100).toFixed(1) + ' ' + C.toFixed(1), 'stroke-dashoffset': (-C * off / 100).toFixed(1), transform: 'rotate(-90 60 60)', 'class': 'rf', style: '--rc:' + sg[1] }));
+      off += p;
+    });
+    return el('div', { cls: 'ring' }, sv, el('div', { cls: 'rc' }, el('b', { cls: 'num', text: center }), el('span', { style: 'color:' + (subColor || 'var(--mint)'), text: sub })));
   }
-  function dcard(icon, title, link, onLink) {
+  function dcard(icon, title, sub) {
     var c = el('div', { cls: 'dc' });
-    c.appendChild(el('div', { cls: 'dch' }, el('span', { cls: 'dci' }, ico(icon)), el('span', { cls: 'dct', text: title }),
-      link ? el('a', { cls: 'dcl', href: 'javascript:void 0', onclick: onLink, text: link }) : null));
+    c.appendChild(el('div', { cls: 'dch' }, el('span', { cls: 'dci' }, ico(icon)), el('div', { cls: 'dctw' }, el('span', { cls: 'dct', text: title }), sub ? el('span', { cls: 'dcs', text: sub }) : null), el('span', { cls: 'kebab', text: '⋮' })));
     var b = el('div', { cls: 'dcb' }); c.appendChild(b); c._b = b; return c;
   }
-  function lrow(color, label, value, go) { return el('div', { cls: 'lrow' + (go ? ' go' : ''), onclick: go || null }, el('i', { style: 'background:' + color }), el('span', { cls: 'll', text: label }), el('b', { cls: 'num', text: String(value) })); }
-  function dfoot(ok, text) { return el('div', { cls: 'dfoot ' + (ok ? 'ok' : 'bad') }, el('span', { cls: 'fi', text: ok ? '✓' : '!' }), el('span', { text: text })); }
-  function lvl(score) { return score >= 60 ? ['High', 'var(--crit)', t('lvHigh')] : (score >= 25 ? ['Medium', 'var(--warn)', t('lvMed')] : ['Low', 'var(--ok)', t('lvLow')]); }
-  function hhmm(s) { s = String(s || ''); var d = s.slice(0, 10), today = new Date(), td = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2); return (d === td ? '' : s.slice(5, 10) + ' ') + s.slice(11, 16); }
-
-  // coloured severity glyphs of the design: red shield, amber triangle, blue info disc
+  function stat(label, value, dot) { return el('div', { cls: 'st' }, dot ? el('i', { style: 'background:' + dot }) : el('i', { cls: 'nod' }), el('div', null, el('div', { cls: 'sl2', text: label }), el('b', { cls: 'num', text: String(value) }))); }
+  function lrow(color, label, value, go) { return el('div', { cls: 'lrow' + (go ? ' go' : ''), onclick: go || null }, color ? el('i', { style: 'background:' + color }) : null, el('span', { cls: 'll', text: label }), el('b', { cls: 'num', text: String(value) })); }
+  function dfoot(ok, text, icon) { return el('div', { cls: 'dfoot ' + (ok ? 'ok' : 'bad') }, el('span', { cls: 'fi', text: icon || (ok ? '✓' : '!') }), el('span', { text: text })); }
+  function dlink(text, fn) { return el('a', { cls: 'dlink', href: 'javascript:void 0', onclick: fn }, el('span', { text: text }), el('span', { cls: 'arr', text: S.lang === 'en' ? '→' : '←' })); }
+  function lvl(score) { return score >= 60 ? ['High', 'var(--crit)', t('lvHigh')] : (score >= 25 ? ['Medium', 'var(--warn)', t('lvMed')] : ['Low', 'var(--mint)', t('lvLow')]); }
+  function sevWord(s) { return s === 'Critical' ? t('svHigh') : (s === 'Warning' ? t('svMed') : t('svLow')); }
+  function sevCol(s) { return s === 'Critical' ? 'var(--crit)' : (s === 'Warning' ? 'var(--warn)' : 'var(--mint)'); }
+  function hhmm(s) { s = String(s || ''); var d = s.slice(0, 10), n = new Date(), td = n.getFullYear() + '-' + ('0' + (n.getMonth() + 1)).slice(-2) + '-' + ('0' + n.getDate()).slice(-2); return (d === td ? '' : s.slice(5, 10) + ' ') + s.slice(11, 16); }
+  function catIcon(c) { c = String(c || ''); if (/^Mail/.test(c)) return 'mailsec'; if (/BruteForce|ActiveDirectory|ADAttack|Guard|Logon|Identity|UBA/i.test(c)) return 'users'; if (/Defender|Endpoint|Ransom|FIM|Process|Behavior|Firewall|Software|Usb|Service/i.test(c)) return 'computers'; return 'alerts'; }
   function sevIcon(k) {
     var sv = svgEl('svg', { viewBox: '0 0 34 34', 'aria-hidden': 'true' }), w = el('span', { cls: 'si' }, sv);
     if (k === 'c') { sv.appendChild(svgEl('path', { d: 'M17 2.5 29 7v9.2c0 7.3-5.1 12.6-12 15.3C10.1 28.8 5 23.5 5 16.2V7z', fill: '#FF4D5E' })); sv.appendChild(svgEl('path', { d: 'M13 12.5l8 8M21 12.5l-8 8', stroke: '#fff', 'stroke-width': '2.6', 'stroke-linecap': 'round' })); }
-    else if (k === 'w') { sv.appendChild(svgEl('path', { d: 'M17 3.5 32 29.5H2z', fill: '#FFB020', 'stroke-linejoin': 'round' })); sv.appendChild(svgEl('path', { d: 'M17 12v8.5M17 24.6v.2', stroke: '#1A1206', 'stroke-width': '2.8', 'stroke-linecap': 'round' })); }
+    else if (k === 'w') { sv.appendChild(svgEl('path', { d: 'M17 3.5 32 29.5H2z', fill: '#FFB020' })); sv.appendChild(svgEl('path', { d: 'M17 12v8.5M17 24.6v.2', stroke: '#1A1206', 'stroke-width': '2.8', 'stroke-linecap': 'round' })); }
     else { sv.appendChild(svgEl('circle', { cx: 17, cy: 17, r: 14, fill: '#3D8BFF' })); sv.appendChild(svgEl('path', { d: 'M17 15.5v8M17 10.6v.2', stroke: '#fff', 'stroke-width': '2.8', 'stroke-linecap': 'round' })); }
     return w;
   }
+  function badgeIcon(sev) { return el('span', { cls: 'bi ' + sev, text: sev === 'Info' ? 'i' : '!' }); }
+
   function vOverview() {
     var v = clear($('view'));
     v.appendChild(spinner());
@@ -1027,7 +1039,6 @@
       v = clear($('view'));
       badges.events = { n: s.crit, c: 'var(--crit)' }; badges.incidents = { n: s.incidentsOpen, c: 'var(--crit)' }; badges.guard = { n: s.guard.blocked, c: 'var(--crit)' }; badges.connections = { n: s.conn.down, c: 'var(--crit)' };
       renderNav(); setRailStatus(s);
-      // ---- header: title + severity counters
       function sevChip(cls, n, label, sev) {
         return el('button', { type: 'button', cls: 'sevc ' + cls, onclick: function () { S.ev.sev = '=' + sev; S.ev.cat = ''; S.ev.skip = 0; go('events'); } },
           sevIcon(cls), el('span', null, el('b', { cls: 'num', text: String(n || 0) }), el('small', { text: label })), el('span', { cls: 'chev', text: S.lang === 'en' ? '›' : '‹' }));
@@ -1039,39 +1050,48 @@
       if (!lic.valid) v.appendChild(el('div', { cls: 'flash err', text: t('license') + ': ' + (lic.reason || t('invalid')) }));
       else if (!lic.permanent && lic.daysLeft !== null && lic.daysLeft !== undefined && lic.daysLeft <= 30) v.appendChild(el('div', { cls: 'flash err', text: t('licSoon').replace('{n}', lic.daysLeft) + (lic.expiry ? ' (' + licDate(lic.expiry) + ')' : '') }));
 
-      // ---- row 1: identity · computers · login alerts · email
+      // ---------- row 1
       var r1 = el('div', { cls: 'dgrid g4' }); v.appendChild(r1);
-      var cId = dcard('users', t('dcIdentity'), null); r1.appendChild(cId); cId._b.appendChild(spinner());
+      var cId = dcard('protect', t('dcIdentity')); r1.appendChild(cId); cId._b.appendChild(spinner());
       var tg = s.conn.targets || 0, dn = s.conn.down || 0, wn = s.conn.warn || 0, okN = Math.max(0, tg - dn - wn), noAg = Math.max(0, tg - ((s.agents && s.agents.active) || 0));
-      var cEp = dcard('computers', t('dcEndpoints'), t('all'), function () { go('computers'); }); r1.appendChild(cEp);
-      cEp._b.appendChild(el('div', { cls: 'rwrap' }, ring(tg ? okN * 100 / tg : 0, String(okN), t('connected'), 'var(--mint)'),
-        el('div', { cls: 'legend' }, lrow('var(--ok)', t('connected'), okN), lrow('var(--warn)', t('warning'), wn), lrow('var(--crit)', t('down'), dn, dn ? function () { go('connections'); } : null), lrow('var(--muted)', t('dcNoAgent'), noAg, noAg ? function () { go('deploy'); } : null))));
+      var cEp = dcard('computers', t('dcEndpoints')); r1.appendChild(cEp);
+      cEp._b.appendChild(el('div', { cls: 'rwrap' }, ring(tg ? [[okN * 100 / tg, 'var(--mint)'], [wn * 100 / tg, 'var(--warn)'], [dn * 100 / tg, 'var(--crit)']] : 0, String(okN), t('connected')),
+        el('div', { cls: 'legend' }, lrow('var(--ok)', t('connected'), okN, function () { go('computers'); }), lrow('var(--warn)', t('warning'), wn, wn ? function () { go('connections'); } : null), lrow('var(--crit)', t('down'), dn, dn ? function () { go('connections'); } : null), lrow('var(--muted)', t('dcNoAgent'), noAg, noAg ? function () { go('deploy'); } : null))));
       cEp.appendChild(dfoot(!dn, dn ? t('dcEpBad').replace('{n}', dn) : t('dcEpOk')));
-      var cLa = dcard('alerts', t('dcLogin'), t('dcAllAlerts'), function () { S.ev.cat = 'BruteForce,Guard,ActiveDirectory,ADAttack'; S.ev.sev = ''; S.ev.skip = 0; go('events'); }); r1.appendChild(cLa); cLa._b.appendChild(spinner());
-      var cMl = dcard('mailsec', t('dcMail'), t('all'), function () { go('mailsec'); }); r1.appendChild(cMl); cMl._b.appendChild(spinner());
+      var cLa = dcard('users', t('dcLogin')); r1.appendChild(cLa); cLa._b.appendChild(spinner());
+      cLa.appendChild(dlink(t('dcAllAlerts'), function () { S.ev.cat = 'BruteForce,Guard,ActiveDirectory,ADAttack'; S.ev.sev = ''; S.ev.skip = 0; go('events'); }));
+      var cMl = dcard('mailsec', t('dcMail')); r1.appendChild(cMl); cMl._b.appendChild(spinner());
 
-      // ---- row 2: risk · threat timeline · incident response
+      // ---------- row 2
       var r2 = el('div', { cls: 'dgrid g3' }); v.appendChild(r2);
       var rk = s.risk || { score: 0 }, L = lvl(rk.score || 0);
-      var cRk = dcard('protect', t('dcRisk')); r2.appendChild(cRk);
-      function rline(lab, sc) { var l = lvl(sc || 0); return el('div', { cls: 'rkl' }, el('span', { text: lab }), el('b', { style: 'color:' + l[1], text: l[2] }), el('i', { style: 'background:' + l[1] })); }
-      cRk._b.appendChild(el('div', { cls: 'rwrap' }, ring(rk.score || 0, String(rk.score || 0), L[2], L[1]),
-        el('div', { cls: 'legend' }, rline(t('rkIdentity'), rk.identity), rline(t('rkDevices'), rk.devices), rline(t('rkNetwork'), rk.network))));
-      cRk.appendChild(dfoot(L[0] !== 'High', L[0] === 'High' ? t('rkHigh') : t('rkOk')));
-      var cTl = dcard('investigate', t('dcTimeline'), t('h24')); cTl.className += ' wide'; r2.appendChild(cTl);
-      cTl._b.appendChild(watchStrip(s));
+      var cRk = dcard('protect', t('dcRisk'), t('dcRiskSub')); r2.appendChild(cRk);
+      function rline(icon, lab, sc) { var l = lvl(sc || 0); return el('div', { cls: 'rkl' }, el('span', { cls: 'rki' }, ico(icon)), el('span', { cls: 'rkn', text: lab }), el('b', { style: 'color:' + l[1], text: l[2] }), el('i', { cls: 'dia', style: 'background:' + l[1] })); }
+      var rs = rk.score || 0;
+      cRk._b.appendChild(el('div', { cls: 'rwrap' }, ring([[Math.min(rs, 25), 'var(--mint)'], [Math.max(0, Math.min(rs, 60) - 25), 'var(--warn)'], [Math.max(0, rs - 60), 'var(--crit)']], String(rs), L[2] + ' ' + t('dcRiskWord'), L[1]),
+        el('div', { cls: 'legend' }, rline('users', t('rkIdentity'), rk.identity), rline('computers', t('rkDevices'), rk.devices), rline('network', t('rkNetwork'), rk.network))));
+      cRk.appendChild(dfoot(L[0] !== 'High', L[0] === 'High' ? t('rkHigh') : t('rkOk'), '▮'));
+      var cTl = dcard('clock', t('dcTimeline')); cTl.className += ' wide'; r2.appendChild(cTl);
+      var hsel = el('select', { cls: 'tlsel', onchange: function () { S.ev.hours = +hsel.value; vOverview(); } });
+      [[24, t('h24')], [168, t('d7')]].forEach(function (o) { var op = el('option', { value: String(o[0]), text: o[1] }); if (S.ev.hours === o[0]) op.selected = true; hsel.appendChild(op); });
+      cTl.querySelector('.kebab').replaceWith(hsel);
+      cTl._b.appendChild(spinner());
       var is = s.incStat || { open: 0, investigating: 0, closed24: 0 }, act = (is.open || 0) + (is.investigating || 0);
-      var cIr = dcard('incidents', t('dcIncident'), t('all'), function () { go('incidents'); }); r2.appendChild(cIr);
-      cIr._b.appendChild(el('div', { cls: 'rwrap' }, ring(act ? 100 : 0, String(act), t('dcActive'), act ? 'var(--crit)' : 'var(--ok)'),
-        el('div', { cls: 'legend' }, lrow('var(--crit)', t('stOpen'), is.open || 0), lrow('var(--warn)', t('stInv'), is.investigating || 0), lrow('var(--ok)', t('dcResolved24'), is.closed24 || 0))));
-      var stage = act ? (is.investigating ? 3 : 2) : 4, steps = [t('stDetected'), t('stTriage'), t('stInv'), t('stResolved')], sp = el('div', { cls: 'stepper' });
-      steps.forEach(function (n, i) { sp.appendChild(el('div', { cls: 'stp' + (i < stage ? ' on' : '') }, el('i'), el('span', { text: n }))); });
-      cIr.appendChild(sp);
+      var cIr = dcard('incidents', t('dcIncident'), t('dcActiveInc')); r2.appendChild(cIr);
+      var tot = act + (is.closed24 || 0);
+      function irow(cls, label, n, col) { return el('div', { cls: 'irow' }, el('span', { cls: 'bi ' + cls, text: cls === 'Info' ? 'i' : '!' }), el('span', { cls: 'll', text: label }), el('b', { cls: 'num', style: 'color:' + col, text: String(n) })); }
+      cIr._b.appendChild(el('div', { cls: 'rwrap' }, ring(tot ? [[act * 100 / tot, 'var(--mint)'], [100 - act * 100 / tot, 'var(--muted)']] : [[100, 'var(--mint)']], String(act), t('dcActive')),
+        el('div', { cls: 'legend' }, irow('Critical', t('stOpen'), is.open || 0, 'var(--crit)'), irow('Warning', t('stInv'), is.investigating || 0, 'var(--warn)'), irow('Ok', t('stContained'), 0, 'var(--mint)'), irow('Info', t('dcResolved24'), is.closed24 || 0, 'var(--info)'))));
+      var stage = act ? (is.investigating ? 3 : 2) : 7, steps = [t('stDetected'), t('stTriage'), t('stInv'), t('stContained'), t('stEradication'), t('stRecovery'), t('stResolved')], sp = el('div', { cls: 'stepper' });
+      steps.forEach(function (n, i) { sp.appendChild(el('div', { cls: 'stp' + (i < stage ? ' on' : (i === stage ? ' cur' : '')) }, el('i', { text: i < stage ? '✓' : '' }), el('span', { text: n }))); });
+      cIr.appendChild(el('div', { cls: 'sptitle', text: t('dcProgress') })); cIr.appendChild(sp);
 
-      // ---- row 3: recent alerts
-      var cRa = dcard('alerts', t('dcRecent'), t('dcAlertLog'), function () { S.ev.sev = ''; S.ev.cat = ''; S.ev.skip = 0; go('events'); }); cRa.className += ' full'; v.appendChild(cRa); cRa._b.appendChild(spinner());
+      // ---------- row 3: recent alerts with status
+      var cRa = dcard('alerts', t('dcRecent')); cRa.className += ' full'; v.appendChild(cRa);
+      cRa.querySelector('.kebab').replaceWith(dlink(t('dcAlertLog'), function () { S.ev.sev = ''; S.ev.cat = ''; S.ev.skip = 0; go('events'); }));
+      cRa._b.appendChild(spinner());
 
-      // ---- details (tabs): categories · Active Directory · system health
+      // ---------- details (tabs)
       var tiles = el('div', { cls: 'tiles' });
       arr(s.categories).forEach(function (c) {
         var z = !c.n;
@@ -1088,50 +1108,73 @@
         kpi(s.sources, t('srcCount'), null, function () { go('computers'); }),
         kpi(s.jobsOn + ' / ' + s.jobsTotal, t('jobsOn'), 'var(--mint)', function () { go('jobs'); })));
       hc.appendChild(el('div', { cls: 'kv' },
-        el('div', { cls: 'k', text: t('license') }), el('div', null, lic.valid ? pill('ok', t('valid') + (lic.permanent ? ' · ' + t('permanent') : (lic.expiry ? ' · ' + lic.expiry : ''))) : pill('bad', t('invalid')), ' ', lic.company || '', lic.device ? el('span', { cls: 'muted mono', text: '  ' + lic.device }) : null),
+        el('div', { cls: 'k', text: t('license') }), el('div', null, lic.valid ? pill('ok', t('valid') + (lic.permanent ? ' · ' + t('permanent') : (lic.expiry ? ' · ' + licDate(lic.expiry) + (lic.daysLeft != null ? ' · ' + t('licLeft').replace('{n}', lic.daysLeft).replace(/^[^:]*:\s*/, '') : '') : ''))) : pill('bad', t('invalid')), ' ', lic.company || '', lic.device ? el('span', { cls: 'muted mono', text: '  ' + lic.device }) : null),
         el('div', { cls: 'k', text: t('connections') }), el('div', null, s.conn.targets + ' · ', s.conn.down ? pill('Fail', s.conn.down + ' ' + t('down')) : pill('OK', t('connected'))),
         el('div', { cls: 'k', text: t('guard') }), el('div', { text: s.guard.blocked + ' ' + t('blockedNow') + ' · ' + s.guard.rules + ' ' + t('rules') }),
         el('div', { cls: 'k', text: t('jobs') }), el('div', null, s.jobsOn + ' / ' + s.jobsTotal, s.jobsBad ? el('span', { style: 'color:var(--warn)', text: '  ⚠ ' + s.jobsBad }) : null)));
       v.appendChild(hc);
-      tabify(v, 'overview2', [['cat', 'tbCategories', [cc]], ['ad', 'tbAD', [adc]], ['health', 'tbHealth', [hc]]]);
+      tabify(v, 'overview2', [['health', 'tbHealth', [hc]], ['cat', 'tbCategories', [cc]], ['ad', 'tbAD', [adc]]]);
 
-      // ---- async: recent alerts
-      api('/api/findings?hours=' + S.ev.hours + '&max=6').then(function (r) {
+      // ---------- async: timeline (events placed on one line, labels alternate above / below)
+      api('/api/findings?hours=' + S.ev.hours + '&max=7').then(function (r) {
+        clear(cTl._b);
+        var it = arr(r.items).slice().reverse();
+        if (!it.length) { cTl._b.appendChild(el('div', { cls: 'dempty' }, el('span', { cls: 'fi ok', text: '✓' }), t('noEvents'))); }
+        else {
+          var tl = el('div', { cls: 'tline' });
+          tl.appendChild(el('div', { cls: 'tbar' }));
+          var n = it.length;
+          it.forEach(function (f, i) {
+            var pos = n === 1 ? 50 : 6 + i * (88 / (n - 1));
+            var up = i % 2 === 0;
+            tl.appendChild(el('div', { cls: 'tev ' + (up ? 'up' : 'dn'), style: (S.lang === 'en' ? 'left:' : 'right:') + pos + '%', onclick: function () { openFinding(f.id); } },
+              el('i', { cls: 'tnode' }), el('span', { cls: 'tstem', style: 'background:' + sevCol(f.sev) }),
+              el('div', { cls: 'tlab' }, badgeIcon(f.sev), el('div', null, el('div', { cls: 't1', text: f.title }), el('div', { cls: 't2', text: hhmm(f.time) + ' · ' + f.host })))));
+          });
+          cTl._b.appendChild(tl);
+        }
+        cTl._b.appendChild(el('div', { cls: 'tlegend' }, el('span', null, el('i', { style: 'background:var(--crit)' }), t('svHigh')), el('span', null, el('i', { style: 'background:var(--warn)' }), t('svMed')), el('span', null, el('i', { style: 'background:var(--mint)' }), t('svLow')), el('span', null, el('i', { style: 'background:var(--muted)' }), t('svInfo'))));
+      }).catch(function () { clear(cTl._b); });
+      // ---------- async: recent alerts
+      api('/api/findings?hours=' + S.ev.hours + '&max=6&st=1').then(function (r) {
         clear(cRa._b);
+        var stMap = { Open: ['new', t('stNew')], Investigating: ['inv', t('stInv')], Closed: ['res', t('stResolved')], Logged: ['log', t('stLogged')] };
         var rows = arr(r.items).map(function (f) {
-          return el('tr', { cls: 'clk', onclick: function () { openFinding(f.id); } }, el('td', { cls: 'num muted nw', text: hhmm(f.time) }),
-            el('td', { cls: 'nw' }, sevDot(f.sev), el('span', { cls: 'sevt ' + f.sev, text: sevName(f.sev) })), el('td', { cls: 'muted nw', text: f.catTitle || f.cat }),
-            el('td', null, f.title, f.mitre ? el('span', { cls: 'mitre', text: f.mitre }) : null), el('td', { cls: 'nw', text: f.host }));
+          var st = stMap[f.status] || stMap.Logged;
+          return el('tr', { cls: 'clk', onclick: function () { openFinding(f.id); } }, el('td', { cls: 'num nw', text: hhmm(f.time) }),
+            el('td', { cls: 'nw' }, el('span', { cls: 'sw ' + f.sev }, badgeIcon(f.sev), sevWord(f.sev))),
+            el('td', { cls: 'nw' }, el('span', { cls: 'cw' }, ico(catIcon(f.cat)), f.catTitle || f.cat)),
+            el('td', null, f.title), el('td', { cls: 'nw', text: f.host }),
+            el('td', { cls: 'nw' }, el('span', { cls: 'stp2 ' + st[0], text: st[1] })), el('td', { cls: 'nw muted', text: '⋯' }));
         });
-        if (!rows.length) rows = [emptyRow(5, t('noEvents'))];
-        cRa._b.appendChild(table([t('time'), t('severity'), t('category'), t('title'), t('host')], rows));
+        if (!rows.length) rows = [emptyRow(7, t('noEvents'))];
+        cRa._b.appendChild(table([t('time'), t('severity'), t('category'), t('dcAlert'), t('host'), t('status'), ''], rows));
       }).catch(function () { clear(cRa._b); cRa._b.appendChild(el('div', { cls: 'empty', text: t('noEvents') })); });
-      // ---- async: login alerts
+      // ---------- async: login alerts
       api('/api/findings?hours=168&max=4&cat=BruteForce,Guard,ActiveDirectory,ADAttack').then(function (r) {
         clear(cLa._b);
         var it = arr(r.items);
         if (!it.length) { cLa._b.appendChild(el('div', { cls: 'dempty' }, el('span', { cls: 'fi ok', text: '✓' }), t('dcLoginNone'))); return; }
         it.forEach(function (f) {
-          cLa._b.appendChild(el('div', { cls: 'arow', onclick: function () { openFinding(f.id); } },
-            el('span', { cls: 'ai ' + f.sev, text: f.sev === 'Critical' ? '!' : (f.sev === 'Warning' ? '!' : 'i') }),
+          cLa._b.appendChild(el('div', { cls: 'arow', onclick: function () { openFinding(f.id); } }, badgeIcon(f.sev),
             el('div', { cls: 'at' }, el('div', { cls: 'a1', text: f.title }), el('div', { cls: 'a2', text: f.host })),
-            el('div', { cls: 'aw' }, el('div', { cls: 'num', text: hhmm(f.time) }), el('div', { cls: 'sevt ' + f.sev, text: sevName(f.sev) }))));
+            el('div', { cls: 'aw' }, el('div', { cls: 'num', text: hhmm(f.time) }), el('div', { style: 'color:' + sevCol(f.sev) + ';font-weight:700', text: sevWord(f.sev) }))));
         });
       }).catch(function () { clear(cLa._b); cLa._b.appendChild(el('div', { cls: 'dempty', text: t('noEvents') })); });
-      // ---- async: email security
+      // ---------- async: email security
       api('/api/mail/overview?days=7').then(function (m) {
         clear(cMl._b);
         var bc = m.byCat || {}, thr = (m.total || 0), q = m.quarantined || 0;
-        cMl._b.appendChild(el('div', { cls: 'rwrap' }, ring(thr ? 100 : 100, String(thr), t('dcThreats7'), thr ? 'var(--warn)' : 'var(--ok)'),
-          el('div', { cls: 'legend' }, lrow('var(--warn)', t('mlSpam'), bc.MailSpam || 0), lrow('var(--crit)', t('mlPhish'), bc.MailPhish || 0), lrow('var(--info)', t('mlAuth'), bc.MailAuth || 0), lrow('var(--muted)', t('mlQuar'), q))));
+        cMl._b.appendChild(el('div', { cls: 'rwrap' }, ring([[100, thr ? 'var(--warn)' : 'var(--mint)']], String(thr), t('dcThreats7'), thr ? 'var(--warn)' : 'var(--mint)'),
+          el('div', { cls: 'legend plain' }, lrow(null, t('mlSpam'), bc.MailSpam || 0), lrow(null, t('mlPhish'), bc.MailPhish || 0), lrow(null, t('mlAuth'), bc.MailAuth || 0), lrow(null, t('mlQuar'), q))));
         cMl.appendChild(dfoot(true, m.exchange ? t('dcMailOk') : t('dcMailNoEx')));
       }).catch(function () { clear(cMl._b); cMl._b.appendChild(el('div', { cls: 'dempty', text: t('dcMailNoEx') })); });
-      // ---- async: identity (Active Directory, 7 days) + AD details tab
+      // ---------- async: identity + AD tab
       api('/api/ad/dashboard?days=7').then(function (A) {
         clear(cId._b);
         var ok = A.totalLogon || 0, bad = A.totalFail || 0, ac = A.account || {}, pc = (ok + bad) ? Math.round(ok * 1000 / (ok + bad)) / 10 : 100;
-        cId._b.appendChild(el('div', { cls: 'rwrap' }, ring(pc, pc + '%', t('dcLogonOk'), 'var(--mint)'),
-          el('div', { cls: 'legend' }, lrow('var(--ok)', t('adLogonOk'), ok), lrow('var(--crit)', t('adLogonFail'), bad, bad ? function () { S.ev.cat = 'BruteForce,ActiveDirectory'; S.ev.sev = ''; S.ev.skip = 0; go('events'); } : null), lrow('var(--info)', t('adAcctCreated'), ac.created || 0), lrow('var(--warn)', t('adAcctModified'), ac.modified || 0))));
+        cId._b.appendChild(el('div', { cls: 'rwrap' }, ring([[pc, 'var(--mint)']], pc + '%', t('dcLogonOk')),
+          el('div', { cls: 'stats' }, stat(t('dcSignins'), ok + bad), stat(t('adLogonOk'), ok, 'var(--ok)'), stat(t('adLogonFail'), bad, 'var(--muted)'))));
         cId.appendChild(dfoot(bad < 50, bad < 50 ? t('dcIdOk') : t('dcIdBad').replace('{n}', bad)));
         clear(adc); adc.appendChild(el('h3', { text: t('adDash7d') }));
         function stt(val, lab, col) { return el('div', { cls: 'kpi', style: col ? '--kc:' + col : null }, el('div', { cls: 'v num', style: col ? 'color:' + col : null, text: String(val) }), el('div', { cls: 'l', text: lab })); }
@@ -3976,7 +4019,7 @@
 
     function step1() {
       clear(host); var c = shell();
-      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=5', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
+      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=7', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
       c.appendChild(el('div', { text: isSetup ? t('loginSetupLead') : t('loginLead'), style: 'opacity:.7;margin:4px 0 18px;font-size:13px;line-height:1.7' }));
       var user = inp(t('loginUser'), 'text', ''), pass = inp(t('loginPass'), 'password', ''), pass2 = null, rem = null;
       user.style.cssText = 'width:100%'; pass.style.cssText = 'width:100%';
