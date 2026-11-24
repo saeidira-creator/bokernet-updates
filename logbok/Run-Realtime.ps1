@@ -15,7 +15,11 @@ $state = Get-LogBokState -Config $cfg
 # --- بررسی لایسنس | license gate ---
 $lic = Test-LogBokLicense -Config $cfg
 if (-not $lic.Valid) {
-    Write-LogBokLog -Message "لایسنس نامعتبر ($($lic.Reason)) — موتور متوقف شد. | License invalid: $($lic.Reason)" -Level ERROR -Config $cfg
+    # ساعتی یک خط کافی است (نه هر ۲ دقیقه) | one log line per hour is enough (was every 2 minutes)
+    if (Test-LogBokThrottle -Key "license-log::$($lic.Reason)" -State $state -Config $cfg -Minutes 60) {
+        Write-LogBokLog -Message "لایسنس نامعتبر ($($lic.Reason)) — موتور متوقف شد. | License invalid: $($lic.Reason)" -Level ERROR -Config $cfg
+        Set-LogBokThrottle -Key "license-log::$($lic.Reason)" -State $state; Save-LogBokState -State $state -Config $cfg
+    }
     # مشکلِ لایسنس روزی یک‌بار ایمیل می‌شود (نه هر ۱۵ دقیقه)؛ خطای موقتِ خواندنِ سخت‌افزار فقط اگر بیش از ۲۴ ساعت ادامه یابد
     $mailIt = $true
     if ($lic.Reason -eq 'DeviceUnknown') {
@@ -38,6 +42,10 @@ if ($state.ContainsKey('DeviceUnknownSince')) { $state.Remove('DeviceUnknownSinc
 # بازهٔ بررسی: از زمان آخرین اجرا (یا ۱۰ دقیقهٔ اخیر در اولین بار)
 $lastRun = $null
 if ($state.ContainsKey('LastRealtimeRun')) { $v = $state['LastRealtimeRun']; $lastRun = if ($v -is [datetime]) { $v } else { ConvertTo-LBDate ([string]$v) } }
+# انبارِ لاگ بعد از وقفه (لایسنس/خاموشی) عقب‌ماندگی را تا ۷ روز جبران می‌کند (بدونِ هشدارِ قدیمی)
+# after a gap (license, downtime) the log archive catches up to 7 days back (no alerts for old events)
+$archStart = $null
+if ($lastRun -and $lastRun -lt (Get-Date).AddHours(-6)) { $archStart = $lastRun; if ($archStart -lt (Get-Date).AddDays(-7)) { $archStart = (Get-Date).AddDays(-7) } }
 if (-not $lastRun -or $lastRun -lt (Get-Date).AddHours(-6)) { $lastRun = (Get-Date).AddMinutes(-10) }   # خاموشیِ طولانی: سیلِ رویدادِ قدیمی نه
 # کمی هم‌پوشانی برای از دست نرفتن رویداد
 $start = $lastRun.AddMinutes(-1)
@@ -143,7 +151,7 @@ if ($cfg.Enabled.Incidents -ne $false) {
 if ($cfg.Enabled.Archive -ne $false) {
     try {
         Import-Module (Join-Path $root 'LogBok.Archive.psm1') -Force
-        $n = Invoke-LBArchiveIngest -Config $cfg -Start $start
+        $n = Invoke-LBArchiveIngest -Config $cfg -Start $(if ($archStart) { $archStart } else { $start })
         Write-LogBokLog -Message "انبارِ لاگ: $n رویداد افزوده شد" -Config $cfg
     } catch { Write-LogBokLog -Message "خطا در انبارِ لاگ: $($_.Exception.Message)" -Level WARN -Config $cfg }
 }
