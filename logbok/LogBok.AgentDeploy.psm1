@@ -651,6 +651,24 @@ function Get-LBArrLocal { param($v) if ($null -eq $v) { return @() }; if ($v -is
 function Invoke-LBAgentPoliciesAuto {
     param([Parameter(Mandatory)][string]$InstallDir, [Parameter(Mandatory)][string]$StateDir, [int]$MinMinutes = 60)
     $out = @()
+    # توکنِ ثبت‌نامِ بسته‌ای که با GPO پخش شده نباید منقضی شود (کامپیوترهای تازه با خطای 403 رد می‌شدند)
+    # keep the enrollment token of a GPO-deployed package alive: it lives in SYSVOL, and newly added computers
+    # were refused with HTTP 403 "enrollment token expired" once its 30 days ran out
+    try {
+        $gpoOn = @(Get-LBAgentPolicies -StateDir $StateDir | Where-Object { $_.Enabled -ne $false -and ($_.Method -eq 'gpo' -or $_.Method -eq 'both') -and $_.Gpo -and $_.Gpo.Guid }).Count
+        if ($gpoOn -and -not (Get-Command Get-LBEnrollInfo -ErrorAction SilentlyContinue)) { Import-Module (Join-Path $InstallDir 'LogBok.AgentIn.psm1') -DisableNameChecking -Global -ErrorAction Stop }
+        if ($gpoOn) {
+            $e = Get-LBEnrollInfo -StateDir $StateDir
+            if ($e -and -not $e.Revoked) {
+                $days = 30; try { if ([int]$e.Days -gt 0) { $days = [int]$e.Days } } catch { }
+                $ex = $null; try { $ex = [datetime]::Parse([string]$e.Expires, $script:Inv, [Globalization.DateTimeStyles]::RoundtripKind) } catch { }
+                $chg = $false
+                if (-not $ex -or $ex -lt (Get-Date).AddDays(7)) { $e.Expires = (Get-Date).AddDays($days).ToString('o', $script:Inv); $chg = $true }
+                if ([int]$e.Uses -ge ([int]$e.MaxUses - 25)) { $e.MaxUses = [int]$e.Uses + 1000; $chg = $true }
+                if ($chg) { Save-LBEnrollInfo -StateDir $StateDir -Info $e; $out += ('enroll-token-extended until ' + ([string]$e.Expires).Substring(0, 10)) }
+            }
+        }
+    } catch { $out += ('enroll-token: ' + $_.Exception.Message) }
     foreach ($p in @(Get-LBAgentPolicies -StateDir $StateDir)) {
         if ($p.Enabled -eq $false) { continue }
         try {
