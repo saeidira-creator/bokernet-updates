@@ -717,7 +717,7 @@
       dcLogin: 'هشدارهای ورود', dcAllAlerts: 'همهٔ هشدارها', dcLoginNone: 'در ۷ روزِ گذشته هشدارِ ورودی نبوده',
       dcMail: 'امنیتِ ایمیل', dcThreats7: 'تهدید در ۷ روز', mlSpam: 'هرزنامه', mlPhish: 'فیشینگ', mlAuth: 'جعلِ فرستنده', mlQuar: 'قرنطینه',
       dcMailOk: 'امنیتِ ایمیل فعال است', dcMailNoEx: 'سرورِ ایمیل (Exchange) روی این سرور نیست',
-      dcRisk: 'ریسک', lvHigh: 'بالا', lvMed: 'متوسط', lvLow: 'پایین', rkIdentity: 'کاربران', rkDevices: 'سیستم‌ها', rkNetwork: 'شبکه (IP)',
+      dcRisk: 'ریسک', lvHigh: 'بالا', lvMed: 'متوسط', lvLow: 'پایین', rkIdentity: 'کاربران', rkDevices: 'سیستم‌ها', rkNetwork: 'شبکه',
       rkHigh: 'ریسک بالاست — پرخطرترین‌ها را بررسی کنید', rkOk: 'ریسک در محدودهٔ قابلِ‌قبول است',
       dcTimeline: 'روندِ تهدیدها', dcIncident: 'پاسخ به رخداد', dcActive: 'فعال', dcResolved24: 'بسته‌شده (۲۴ ساعت)',
       stDetected: 'شناسایی', stTriage: 'ارزیابی', stResolved: 'حل‌شده',
@@ -731,7 +731,7 @@
       dcLogin: 'Login alerts', dcAllAlerts: 'View all alerts', dcLoginNone: 'No login alerts in the last 7 days',
       dcMail: 'Email security', dcThreats7: 'threats · 7 days', mlSpam: 'Spam', mlPhish: 'Phishing', mlAuth: 'Spoofing', mlQuar: 'Quarantined',
       dcMailOk: 'Email security is operating normally', dcMailNoEx: 'No Exchange server on this server',
-      dcRisk: 'Risk', lvHigh: 'High', lvMed: 'Medium', lvLow: 'Low', rkIdentity: 'Users', rkDevices: 'Computers', rkNetwork: 'Network (IPs)',
+      dcRisk: 'Risk', lvHigh: 'High', lvMed: 'Medium', lvLow: 'Low', rkIdentity: 'Users', rkDevices: 'Computers', rkNetwork: 'Network',
       rkHigh: 'Risk is high — review the top entities', rkOk: 'Risk is within acceptable range',
       dcTimeline: 'Threat timeline', dcIncident: 'Incident response', dcActive: 'Active', dcResolved24: 'Resolved (24h)',
       stDetected: 'Detected', stTriage: 'Triage', stResolved: 'Resolved',
@@ -740,6 +740,11 @@
     }
   };
   for (var L21 in D21) { for (var k21 in D21[L21]) { D[L21][k21] = D21[L21][k21]; } }
+  var D22 = {
+    fa: { viewAll: 'همه', rkApps: 'برنامه‌ها', rkData: 'داده‌ها', stActive: 'فعال', ovOtherRep: 'گزارش‌های دیگر', orFailed: 'ورودهای ناموفق', orMalware: 'بدافزار و آنتی‌ویروس', orAdChg: 'تغییراتِ AD و GPO', orBlocked: 'IPهای مسدود', orSessions: 'نشست‌های فعال', orAll: 'همهٔ گزارش‌ها', dcComputer: 'سیستم', myAccount: 'حسابِ من', refreshNow: 'تازه‌سازیِ همین صفحه' },
+    en: { viewAll: 'View all', rkApps: 'Applications', rkData: 'Data', stActive: 'Active', ovOtherRep: 'Other reports', orFailed: 'Failed sign-ins', orMalware: 'Malware & antivirus', orAdChg: 'AD & GPO changes', orBlocked: 'Blocked IPs', orSessions: 'Live sessions', orAll: 'All reports', dcComputer: 'Computer', myAccount: 'My account', refreshNow: 'Refresh this page' }
+  };
+  for (var L22 in D22) { for (var k22 in D22[L22]) { D[L22][k22] = D22[L22][k22]; } }
   function titleCase(s) { return s.replace(/(^|[\s\/(\-–·])([a-z])/g, function (m, a, b) { return a + b.toUpperCase(); }); }
   function t(k) {
     var d = D[S.lang] || D.fa; var v = (k in d) ? d[k] : ((k in D.en) ? D.en[k] : k);
@@ -856,7 +861,11 @@
     search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20.5 20.5l-5-5',
     logout: 'M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h10',
     network: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
-    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2'
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+    apps: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 13v7M13 16.5h7',
+    data: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+    refresh: 'M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4',
+    chev: 'M7 10l5 5 5-5'
   };
   function ico(name) {
     var ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg');
@@ -999,19 +1008,44 @@
   function ring(segs, center, sub, subColor) {
     if (!Array.isArray(segs)) segs = [[segs, subColor || 'var(--mint)']];
     var C = 2 * Math.PI * 50, sv = svgEl('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' }), off = 0;
+    sv.appendChild(gradDefs());
     sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', 'class': 'rt', 'stroke-width': 9 }));
     sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 41, fill: 'none', 'class': 'ri', 'stroke-width': 1 }));
     segs.forEach(function (sg) {
       var p = Math.max(0, Math.min(100 - off, +sg[0] || 0)); if (!p) return;
+      var gr = sg[1] === 'grad'; if (gr) sg = [sg[0], 'url(#' + GRAD_ID + ')'];
       sv.appendChild(svgEl('circle', { cx: 60, cy: 60, r: 50, fill: 'none', stroke: sg[1], 'stroke-width': 9, 'stroke-linecap': 'butt',
-        'stroke-dasharray': (C * p / 100).toFixed(1) + ' ' + C.toFixed(1), 'stroke-dashoffset': (-C * off / 100).toFixed(1), transform: 'rotate(-90 60 60)', 'class': 'rf', style: '--rc:' + sg[1] }));
+        'stroke-dasharray': (C * p / 100).toFixed(1) + ' ' + C.toFixed(1), 'stroke-dashoffset': (-C * off / 100).toFixed(1), transform: 'rotate(-90 60 60)', 'class': 'rf' + (gr ? ' rg' : ''), style: gr ? '' : '--rc:' + sg[1] }));
       off += p;
     });
     return el('div', { cls: 'ring' }, sv, el('div', { cls: 'rc' }, el('b', { cls: 'num', text: center }), el('span', { style: 'color:' + (subColor || 'var(--mint)'), text: sub })));
   }
+  // one shared teal -> gold gradient (ids are document-wide, so each svg gets its own copy with a unique id)
+  var GRAD_ID = 'lbg0', gradN = 0;
+  function gradDefs() {
+    GRAD_ID = 'lbg' + (++gradN);
+    var d = svgEl('defs', {}), g = svgEl('linearGradient', { id: GRAD_ID, gradientUnits: 'userSpaceOnUse', x1: '14', y1: '0', x2: '106', y2: '0' });
+    [['0', 'g0'], ['.42', 'g0'], ['.6', 'g1'], ['1', 'g2']].forEach(function (o) { g.appendChild(svgEl('stop', { offset: o[0], 'class': o[1] })); });
+    d.appendChild(g); return d;
+  }
+  // risk gauge: a 240° arc, value part teal -> gold, the rest dim
+  function arcGauge(score, center, sub, subColor) {
+    var sv = svgEl('svg', { viewBox: '0 0 120 104', 'aria-hidden': 'true' }); sv.appendChild(gradDefs());
+    var R = 48, cx = 60, cy = 60, a0 = 150, sweep = 240;
+    function pt(a) { var r = a * Math.PI / 180; return (cx + R * Math.cos(r)).toFixed(2) + ' ' + (cy + R * Math.sin(r)).toFixed(2); }
+    function arc(f, t2) { return 'M ' + pt(a0 + sweep * f) + ' A ' + R + ' ' + R + ' 0 ' + ((t2 - f) * sweep > 180 ? 1 : 0) + ' 1 ' + pt(a0 + sweep * t2); }
+    var v = Math.max(0.02, Math.min(1, (+score || 0) / 100));
+    sv.appendChild(svgEl('path', { d: arc(0, 1), fill: 'none', 'class': 'rt', 'stroke-width': 9, 'stroke-linecap': 'round' }));
+    sv.appendChild(svgEl('path', { d: arc(0, v), fill: 'none', stroke: 'url(#' + GRAD_ID + ')', 'stroke-width': 9, 'stroke-linecap': 'round', 'class': 'rf rg' }));
+    return el('div', { cls: 'ring gauge' }, sv, el('div', { cls: 'rc' }, el('b', { cls: 'num', text: center }), el('span', { style: 'color:' + (subColor || 'var(--mint)'), text: sub })));
+  }
+  function brandLockup(cls) {
+    return el('div', { cls: 'lockup ' + (cls || '') }, el('img', { cls: 'bmark', src: 'logo.svg?v=10', alt: '', width: '110', height: '90' }),
+      el('div', { cls: 'wm' }, el('span', { cls: 'l1', text: 'Log' }), el('span', { cls: 'l2', text: 'Bok' })), el('div', { cls: 'sp', text: 'Security Package' }));
+  }
   function dcard(icon, title, sub) {
     var c = el('div', { cls: 'dc' });
-    c.appendChild(el('div', { cls: 'dch' }, el('span', { cls: 'dci' }, ico(icon)), el('div', { cls: 'dctw' }, el('span', { cls: 'dct', text: title }), sub ? el('span', { cls: 'dcs', text: sub }) : null), el('span', { cls: 'kebab', text: '⋮' })));
+    c.appendChild(el('div', { cls: 'dch' }, el('span', { cls: 'dci' + (icon === 'computers' || icon === 'mailsec' || icon === 'monitor' ? ' tl' : '') }, ico(icon)), el('div', { cls: 'dctw' }, el('span', { cls: 'dct', text: title }), sub ? el('span', { cls: 'dcs', text: sub }) : null), el('span', { cls: 'kebab', text: '⋮' })));
     var b = el('div', { cls: 'dcb' }); c.appendChild(b); c._b = b; return c;
   }
   function stat(label, value, dot) { return el('div', { cls: 'st' }, dot ? el('i', { style: 'background:' + dot }) : el('i', { cls: 'nod' }), el('div', null, el('div', { cls: 'sl2', text: label }), el('b', { cls: 'num', text: String(value) }))); }
@@ -1039,13 +1073,11 @@
       v = clear($('view'));
       badges.events = { n: s.crit, c: 'var(--crit)' }; badges.incidents = { n: s.incidentsOpen, c: 'var(--crit)' }; badges.guard = { n: s.guard.blocked, c: 'var(--crit)' }; badges.connections = { n: s.conn.down, c: 'var(--crit)' };
       renderNav(); setRailStatus(s);
-      function sevChip(cls, n, label, sev) {
-        return el('button', { type: 'button', cls: 'sevc ' + cls, onclick: function () { S.ev.sev = '=' + sev; S.ev.cat = ''; S.ev.skip = 0; go('events'); } },
-          sevIcon(cls), el('span', null, el('b', { cls: 'num', text: String(n || 0) }), el('small', { text: label })), el('span', { cls: 'chev', text: S.lang === 'en' ? '›' : '‹' }));
-      }
-      v.appendChild(el('div', { cls: 'ovh' },
-        el('div', { cls: 'ovt' }, el('h1', { text: t('overview') }), el('p', { cls: 'ovsub', text: t('ovLead2') })),
-        el('div', { cls: 'sevs' }, sevChip('c', s.crit, t('crit'), 'Critical'), sevChip('w', s.warn, t('warn'), 'Warning'), sevChip('i', s.info, t('info'), 'Info'))));
+      var shield = svgEl('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true' });
+      shield.appendChild(svgEl('path', { d: 'M24 4.5 39.5 10v11.2c0 10.3-6.6 18-15.5 22.3C15.1 39.2 8.5 31.5 8.5 21.2V10z', fill: 'none', 'stroke-width': '3', 'stroke-linejoin': 'round', 'class': 'shO' }));
+      shield.appendChild(svgEl('path', { d: 'M16.5 24.5l5.2 5.2 10-10.4', fill: 'none', 'stroke-width': '3.4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'class': 'shC' }));
+      v.appendChild(el('div', { cls: 'ovh' }, el('span', { cls: 'ovshield' }, shield),
+        el('div', { cls: 'ovt' }, el('h1', { text: t('overview') }), el('p', { cls: 'ovsub', text: t('ovLead2') }))));
       var lic = s.license;
       if (!lic.valid) v.appendChild(el('div', { cls: 'flash err', text: t('license') + ': ' + (lic.reason || t('invalid')) }));
       else if (!lic.permanent && lic.daysLeft !== null && lic.daysLeft !== undefined && lic.daysLeft <= 30) v.appendChild(el('div', { cls: 'flash err', text: t('licSoon').replace('{n}', lic.daysLeft) + (lic.expiry ? ' (' + licDate(lic.expiry) + ')' : '') }));
@@ -1055,7 +1087,7 @@
       var cId = dcard('protect', t('dcIdentity')); r1.appendChild(cId); cId._b.appendChild(spinner());
       var tg = s.conn.targets || 0, dn = s.conn.down || 0, wn = s.conn.warn || 0, okN = Math.max(0, tg - dn - wn), noAg = Math.max(0, tg - ((s.agents && s.agents.active) || 0));
       var cEp = dcard('computers', t('dcEndpoints')); r1.appendChild(cEp);
-      cEp._b.appendChild(el('div', { cls: 'rwrap' }, ring(tg ? [[okN * 100 / tg, 'var(--mint)'], [wn * 100 / tg, 'var(--warn)'], [dn * 100 / tg, 'var(--crit)']] : 0, String(okN), t('connected')),
+      cEp._b.appendChild(el('div', { cls: 'rwrap' }, ring(tg ? [[okN * 100 / tg, 'grad'], [wn * 100 / tg, 'var(--warn)'], [dn * 100 / tg, 'var(--crit)']] : 0, String(okN), t('connected')),
         el('div', { cls: 'legend' }, lrow('var(--ok)', t('connected'), okN, function () { go('computers'); }), lrow('var(--warn)', t('warning'), wn, wn ? function () { go('connections'); } : null), lrow('var(--crit)', t('down'), dn, dn ? function () { go('connections'); } : null), lrow('var(--muted)', t('dcNoAgent'), noAg, noAg ? function () { go('deploy'); } : null))));
       cEp.appendChild(dfoot(!dn, dn ? t('dcEpBad').replace('{n}', dn) : t('dcEpOk')));
       var cLa = dcard('users', t('dcLogin')); r1.appendChild(cLa); cLa._b.appendChild(spinner());
@@ -1068,23 +1100,44 @@
       var cRk = dcard('protect', t('dcRisk'), t('dcRiskSub')); r2.appendChild(cRk);
       function rline(icon, lab, sc) { var l = lvl(sc || 0); return el('div', { cls: 'rkl' }, el('span', { cls: 'rki' }, ico(icon)), el('span', { cls: 'rkn', text: lab }), el('b', { style: 'color:' + l[1], text: l[2] }), el('i', { cls: 'dia', style: 'background:' + l[1] })); }
       var rs = rk.score || 0;
-      cRk._b.appendChild(el('div', { cls: 'rwrap' }, ring([[Math.min(rs, 25), 'var(--mint)'], [Math.max(0, Math.min(rs, 60) - 25), 'var(--warn)'], [Math.max(0, rs - 60), 'var(--crit)']], String(rs), L[2] + ' ' + t('dcRiskWord'), L[1]),
-        el('div', { cls: 'legend' }, rline('users', t('rkIdentity'), rk.identity), rline('computers', t('rkDevices'), rk.devices), rline('network', t('rkNetwork'), rk.network))));
-      cRk.appendChild(dfoot(L[0] !== 'High', L[0] === 'High' ? t('rkHigh') : t('rkOk'), '▮'));
+      // applications / data: scored from this period's alerts in those categories (critical weighs more)
+      function catScore(keys) { var sc = 0; arr(s.categories).forEach(function (c) { if (keys.indexOf(c.key) >= 0) sc += (c.crit || 0) * 30 + Math.max(0, (c.n || 0) - (c.crit || 0)) * 6; }); return Math.min(100, sc); }
+      var rApp = catScore(['AppControl', 'FileSuspicion', 'Vulnerability', 'Tracking', 'Defender', 'Malware', 'SqlLogin', 'IISAttack']);
+      var rDat = catScore(['FIM', 'MassFile', 'FileACL', 'Ransomware', 'MailPhish', 'MailAttach']);
+      rs = Math.max(rs, rApp, rDat); L = lvl(rs);
+      cRk._b.appendChild(el('div', { cls: 'rwrap' }, arcGauge(rs, String(rs), L[2] + ' ' + t('dcRiskWord'), L[1]),
+        el('div', { cls: 'legend rkls' }, rline('users', t('rkIdentity'), rk.identity), rline('computers', t('rkDevices'), rk.devices), rline('apps', t('rkApps'), rApp), rline('data', t('rkData'), rDat), rline('network', t('rkNetwork'), rk.network))));
+      cRk.appendChild(dfoot(L[0] !== 'High', L[0] === 'High' ? t('rkHigh') : t('rkOk')));
       var cTl = dcard('clock', t('dcTimeline')); cTl.className += ' wide'; r2.appendChild(cTl);
       var hsel = el('select', { cls: 'tlsel', onchange: function () { S.ev.hours = +hsel.value; vOverview(); } });
       [[24, t('h24')], [168, t('d7')]].forEach(function (o) { var op = el('option', { value: String(o[0]), text: o[1] }); if (S.ev.hours === o[0]) op.selected = true; hsel.appendChild(op); });
       cTl.querySelector('.kebab').replaceWith(hsel);
       cTl._b.appendChild(spinner());
       var is = s.incStat || { open: 0, investigating: 0, closed24: 0 }, act = (is.open || 0) + (is.investigating || 0);
-      var cIr = dcard('incidents', t('dcIncident'), t('dcActiveInc')); r2.appendChild(cIr);
+      var cIr = dcard('protect', t('dcIncident'), t('dcActiveInc')); cIr.className += ' irc'; r2.appendChild(cIr);
+      cIr.querySelector('.kebab').replaceWith(dlink(t('viewAll'), function () { go('incidents'); }));
       var tot = act + (is.closed24 || 0);
-      function irow(cls, label, n, col) { return el('div', { cls: 'irow' }, el('span', { cls: 'bi ' + cls, text: cls === 'Info' ? 'i' : '!' }), el('span', { cls: 'll', text: label }), el('b', { cls: 'num', style: 'color:' + col, text: String(n) })); }
-      cIr._b.appendChild(el('div', { cls: 'rwrap' }, ring(tot ? [[act * 100 / tot, 'var(--mint)'], [100 - act * 100 / tot, 'var(--muted)']] : [[100, 'var(--mint)']], String(act), t('dcActive')),
-        el('div', { cls: 'legend' }, irow('Critical', t('stOpen'), is.open || 0, 'var(--crit)'), irow('Warning', t('stInv'), is.investigating || 0, 'var(--warn)'), irow('Ok', t('stContained'), 0, 'var(--mint)'), irow('Info', t('dcResolved24'), is.closed24 || 0, 'var(--info)'))));
-      var stage = act ? (is.investigating ? 3 : 2) : 7, steps = [t('stDetected'), t('stTriage'), t('stInv'), t('stContained'), t('stEradication'), t('stRecovery'), t('stResolved')], sp = el('div', { cls: 'stepper' });
+      function irow(cls, label, n, col) { return el('div', { cls: 'irow' }, el('span', { cls: 'bi ' + cls, text: cls === 'Info' ? 'i' : (cls === 'Ok' ? '✓' : '!') }), el('span', { cls: 'll', text: label }), el('b', { cls: 'num', style: 'color:' + col, text: String(n) })); }
+      var stage = act ? (is.investigating ? 3 : 2) : 6, steps = [t('stDetected'), t('stTriage'), t('stInv'), t('stContained'), t('stRecovery'), t('stResolved')], sp = el('div', { cls: 'stepper s6' });
       steps.forEach(function (n, i) { sp.appendChild(el('div', { cls: 'stp' + (i < stage ? ' on' : (i === stage ? ' cur' : '')) }, el('i', { text: i < stage ? '✓' : '' }), el('span', { text: n }))); });
-      cIr.appendChild(el('div', { cls: 'sptitle', text: t('dcProgress') })); cIr.appendChild(sp);
+      // other reports (replaces the globe of the design): live counts of this period + one click into the report
+      function cnt(keys) { var n = 0; arr(s.categories).forEach(function (c) { if (keys.indexOf(c.key) >= 0) n += c.n || 0; }); return n; }
+      function orow(icon, label, n, fn) { return el('a', { cls: 'orow', href: 'javascript:void 0', onclick: fn }, el('span', { cls: 'oi' }, ico(icon)), el('span', { cls: 'ol', text: label }), el('b', { cls: 'num' + (n ? ' hot' : ''), text: n === null ? '' : String(n) }), el('span', { cls: 'arr', text: S.lang === 'en' ? '›' : '‹' })); }
+      function rep2(id) { return function () { location.hash = '#/reports/' + id; }; }
+      var orep = el('div', { cls: 'orep' }, el('div', { cls: 'oh', text: t('ovOtherRep') }),
+        orow('users', t('orFailed'), cnt(['BruteForce']), rep2('logon-failed')),
+        orow('protect', t('orMalware'), cnt(['Defender', 'Ransomware', 'Malware', 'FileSuspicion']), rep2('sec-malware')),
+        orow('settings', t('orAdChg'), cnt(['ActiveDirectory', 'ADAttack', 'GPO']), rep2('ad-changes')),
+        orow('network', t('orBlocked'), s.guard.blocked || 0, function () { go('endpoints/guard'); }),
+        orow('sessions', t('orSessions'), s.sessionsLive || 0, function () { go('sessions'); }),
+        el('a', { cls: 'oall', href: '#/reports', text: t('orAll') + ' ' + (S.lang === 'en' ? '→' : '←') }));
+      cIr._b.appendChild(el('div', { cls: 'irwrap' },
+        el('div', { cls: 'irmain' },
+          el('div', { cls: 'rwrap' }, ring(tot ? [[act * 100 / tot, 'grad'], [100 - act * 100 / tot, 'var(--ringTrack)']] : [[100, 'grad']], String(act), t('dcActive')),
+            el('div', { cls: 'legend' }, irow('Critical', t('stActive'), is.open || 0, 'var(--crit)'), irow('Warning', t('stInv'), is.investigating || 0, 'var(--warn)'), irow('Ok', t('stContained'), 0, 'var(--mint)'), irow('Info', t('dcResolved24'), is.closed24 || 0, 'var(--info)'))),
+          ),
+        orep));
+      cIr._b.appendChild(el('div', { cls: 'sptitle', text: t('dcProgress') })); cIr._b.appendChild(sp);
 
       // ---------- row 3: recent alerts with status
       var cRa = dcard('alerts', t('dcRecent')); cRa.className += ' full'; v.appendChild(cRa);
@@ -1116,20 +1169,22 @@
       tabify(v, 'overview2', [['health', 'tbHealth', [hc]], ['cat', 'tbCategories', [cc]], ['ad', 'tbAD', [adc]]]);
 
       // ---------- async: timeline (events placed on one line, labels alternate above / below)
-      api('/api/findings?hours=' + S.ev.hours + '&max=7').then(function (r) {
+      api('/api/findings?hours=' + S.ev.hours + '&max=6').then(function (r) {
         clear(cTl._b);
         var it = arr(r.items).slice().reverse();
         if (!it.length) { cTl._b.appendChild(el('div', { cls: 'dempty' }, el('span', { cls: 'fi ok', text: '✓' }), t('noEvents'))); }
         else {
-          var tl = el('div', { cls: 'tline' });
+          var tl = el('div', { cls: 'tline' }), side = S.lang === 'en' ? 'left' : 'right', oside = S.lang === 'en' ? 'right' : 'left';
           tl.appendChild(el('div', { cls: 'tbar' }));
-          var n = it.length;
+          var n = it.length, s2 = n > 2 ? 176 / (n - 1) : 100, w = Math.min(32, (s2 + 4) / 2 - 1);
           it.forEach(function (f, i) {
-            var pos = n === 1 ? 50 : 6 + i * (88 / (n - 1));
-            var up = i % 2 === 0;
-            tl.appendChild(el('div', { cls: 'tev ' + (up ? 'up' : 'dn'), style: (S.lang === 'en' ? 'left:' : 'right:') + pos + '%', onclick: function () { openFinding(f.id); } },
-              el('i', { cls: 'tnode' }), el('span', { cls: 'tstem', style: 'background:' + sevCol(f.sev) }),
-              el('div', { cls: 'tlab' }, badgeIcon(f.sev), el('div', null, el('div', { cls: 't1', text: f.title }), el('div', { cls: 't2', text: hhmm(f.time) + ' · ' + f.host })))));
+            var pos = n === 1 ? 50 : 6 + i * (88 / (n - 1)), up = i % 2 === 0, open = function () { openFinding(f.id); };
+            tl.appendChild(el('div', { cls: 'tev ' + (up ? 'up' : 'dn'), style: side + ':' + pos.toFixed(2) + '%', onclick: open },
+              el('i', { cls: 'tnode', style: '--nc:' + sevCol(f.sev) }), el('span', { cls: 'tstem', style: 'background:' + sevCol(f.sev) })));
+            // the label sits beside its node and never runs into the next label on the same side of the line
+            var toEnd = pos > 60, st = 'width:' + w.toFixed(2) + '%;' + (toEnd ? oside + ':' + (100 - pos - 2).toFixed(2) + '%' : side + ':' + Math.max(0, pos - 2).toFixed(2) + '%');
+            tl.appendChild(el('div', { cls: 'tlab2 ' + (up ? 'up' : 'dn') + (toEnd ? ' end' : ''), style: st, onclick: open, title: f.title },
+              badgeIcon(f.sev), el('div', null, el('div', { cls: 't1', text: f.title }), el('div', { cls: 't2', text: hhmm(f.time) + ' · ' + f.host }))));
           });
           cTl._b.appendChild(tl);
         }
@@ -1145,10 +1200,10 @@
             el('td', { cls: 'nw' }, el('span', { cls: 'sw ' + f.sev }, badgeIcon(f.sev), sevWord(f.sev))),
             el('td', { cls: 'nw' }, el('span', { cls: 'cw' }, ico(catIcon(f.cat)), f.catTitle || f.cat)),
             el('td', null, f.title), el('td', { cls: 'nw', text: f.host }),
-            el('td', { cls: 'nw' }, el('span', { cls: 'stp2 ' + st[0], text: st[1] })), el('td', { cls: 'nw muted', text: '⋯' }));
+            el('td', { cls: 'nw' }, el('span', { cls: 'stp2 ' + st[0], text: st[1] })));
         });
-        if (!rows.length) rows = [emptyRow(7, t('noEvents'))];
-        cRa._b.appendChild(table([t('time'), t('severity'), t('category'), t('dcAlert'), t('host'), t('status'), ''], rows));
+        if (!rows.length) rows = [emptyRow(6, t('noEvents'))];
+        cRa._b.appendChild(table([t('time'), t('severity'), t('category'), t('dcAlert'), t('dcComputer'), t('status')], rows));
       }).catch(function () { clear(cRa._b); cRa._b.appendChild(el('div', { cls: 'empty', text: t('noEvents') })); });
       // ---------- async: login alerts
       api('/api/findings?hours=168&max=4&cat=BruteForce,Guard,ActiveDirectory,ADAttack').then(function (r) {
@@ -1165,7 +1220,7 @@
       api('/api/mail/overview?days=7').then(function (m) {
         clear(cMl._b);
         var bc = m.byCat || {}, thr = (m.total || 0), q = m.quarantined || 0;
-        cMl._b.appendChild(el('div', { cls: 'rwrap' }, ring([[100, thr ? 'var(--warn)' : 'var(--mint)']], String(thr), t('dcThreats7'), thr ? 'var(--warn)' : 'var(--mint)'),
+        cMl._b.appendChild(el('div', { cls: 'rwrap' }, ring([[100, thr ? 'var(--warn)' : 'grad']], String(thr), t('dcThreats7'), thr ? 'var(--warn)' : 'var(--mint)'),
           el('div', { cls: 'legend plain' }, lrow(null, t('mlSpam'), bc.MailSpam || 0), lrow(null, t('mlPhish'), bc.MailPhish || 0), lrow(null, t('mlAuth'), bc.MailAuth || 0), lrow(null, t('mlQuar'), q))));
         cMl.appendChild(dfoot(true, m.exchange ? t('dcMailOk') : t('dcMailNoEx')));
       }).catch(function () { clear(cMl._b); cMl._b.appendChild(el('div', { cls: 'dempty', text: t('dcMailNoEx') })); });
@@ -1173,7 +1228,7 @@
       api('/api/ad/dashboard?days=7').then(function (A) {
         clear(cId._b);
         var ok = A.totalLogon || 0, bad = A.totalFail || 0, ac = A.account || {}, pc = (ok + bad) ? Math.round(ok * 1000 / (ok + bad)) / 10 : 100;
-        cId._b.appendChild(el('div', { cls: 'rwrap' }, ring([[pc, 'var(--mint)']], pc + '%', t('dcLogonOk')),
+        cId._b.appendChild(el('div', { cls: 'rwrap' }, ring([[pc, 'grad']], pc + '%', t('dcLogonOk')),
           el('div', { cls: 'stats' }, stat(t('dcSignins'), ok + bad), stat(t('adLogonOk'), ok, 'var(--ok)'), stat(t('adLogonFail'), bad, 'var(--muted)'))));
         cId.appendChild(dfoot(bad < 50, bad < 50 ? t('dcIdOk') : t('dcIdBad').replace('{n}', bad)));
         clear(adc); adc.appendChild(el('h3', { text: t('adDash7d') }));
@@ -4147,7 +4202,7 @@
 
     function step1() {
       clear(host); var c = shell();
-      c.appendChild(el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('img', { src: 'logo.svg?v=9', alt: '', width: '44', height: '44' }), el('div', null, el('div', { text: 'LogBok', style: 'font-size:24px;font-weight:800;letter-spacing:-.3px;line-height:1.1' }), el('div', { text: 'Security Package', style: 'font-size:11.5px;color:var(--gold);font-weight:600;direction:ltr;text-align:start' }))));
+      c.appendChild(brandLockup('lock lg'));
       c.appendChild(el('div', { text: isSetup ? t('loginSetupLead') : t('loginLead'), style: 'opacity:.7;margin:4px 0 18px;font-size:13px;line-height:1.7' }));
       var user = inp(t('loginUser'), 'text', ''), pass = inp(t('loginPass'), 'password', ''), pass2 = null, rem = null;
       user.style.cssText = 'width:100%'; pass.style.cssText = 'width:100%';
@@ -4270,11 +4325,15 @@
       }
       S.meta = m; S.lang = m.lang || 'fa'; S.token = m.token; S.cats = arr(m.categories);
       document.documentElement.lang = (S.lang === 'en') ? 'en' : 'fa'; document.documentElement.dir = S.lang === 'en' ? 'ltr' : 'rtl';
-      $('brandSub').textContent = S.lang === 'en' ? 'Security Package' : 'بستهٔ امنیتی';
       var wu = String(m.user || '').replace(/^.*\\/, ''), wb = clear($('who'));
-      wb.appendChild(el('span', { cls: 'av', text: (wu.charAt(0) || '?').toUpperCase() }));
-      wb.appendChild(el('div', { cls: 'wtx' }, el('div', { cls: 'wn', text: wu || t('userLbl') }), el('div', { cls: 'wv', text: m.host || '' })));
-      if (m.loginOn) { wb.appendChild(el('button', { type: 'button', cls: 'icb', title: t('logout'), 'aria-label': t('logout'), onclick: doLogout }, ico('logout'))); }
+      var menu = el('div', { cls: 'wmenu', hidden: 'hidden' },
+        el('div', { cls: 'wmh' }, el('span', { cls: 'av', text: (wu.charAt(0) || '?').toUpperCase() }), el('div', null, el('div', { cls: 'wn', text: wu || t('userLbl') }), el('div', { cls: 'wv', text: (m.user || '') + (m.host ? ' · ' + m.host : '') }))),
+        m.loginOn ? el('button', { type: 'button', cls: 'wmi', onclick: doLogout }, ico('logout'), el('span', { text: t('logout') })) : null);
+      var wbtn = el('button', { type: 'button', cls: 'wbtn', 'aria-haspopup': 'true', title: t('myAccount'), 'aria-label': t('myAccount'),
+        onclick: function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; } }, el('span', { cls: 'av', text: (wu.charAt(0) || '?').toUpperCase() }), ico('chev'));
+      wb.appendChild(wbtn); wb.appendChild(menu);
+      document.addEventListener('click', function (e) { if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true; });
+      var rb = $('refreshBtn'); if (rb) { rb.title = t('refreshNow'); rb.setAttribute('aria-label', t('refreshNow')); rb.appendChild(ico('refresh')); rb.addEventListener('click', function () { $('liveTxt').textContent = t('updated') + ' ' + new Date().toTimeString().slice(0, 5); rb.classList.add('spin'); setTimeout(function () { rb.classList.remove('spin'); }, 700); route(); }); }
       setRailStatus(null);
       var gs = $('gsearch');
       if (gs) {
