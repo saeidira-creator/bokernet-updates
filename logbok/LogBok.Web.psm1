@@ -320,24 +320,7 @@ function Send-LBStatic {
     param($Ctx, [string]$Path)
     $e = $script:Static[$Path]
     if (-not $e) { return $false }
-    if ($e[0] -eq 'logo.svg') {
-        # همان نشانِ داشبورد با رنگ‌های برندِ config (بدونِ کاشیِ تیره) | identical to the dashboard logo, brand colors from config
-        $br = $null; try { $br = (Get-LogBokConfig -Path (Join-Path $script:Root 'config.psd1') -Raw).Brand } catch { }
-        $brass = '#C9A24B'; $mint = '#4FD1B5'
-        if ($br -and [string]$br.Brass -match '^#[0-9A-Fa-f]{3,8}$') { $brass = [string]$br.Brass }
-        if ($br -and [string]$br.Mint -match '^#[0-9A-Fa-f]{3,8}$') { $mint = [string]$br.Mint }
-        $svg = @"
-<svg viewBox="12 9 40 46" width="34" height="38" xmlns="http://www.w3.org/2000/svg" aria-label="LogBok">
-<rect x="14" y="12" width="36" height="40" rx="4.5" fill="none" stroke="$brass" stroke-width="2.4"/>
-<line x1="22" y1="12" x2="22" y2="52" stroke="$brass" stroke-width="1.5"/>
-<line x1="27" y1="21" x2="45" y2="21" stroke="$brass" stroke-width="2.3" stroke-linecap="round"/>
-<line x1="27" y1="40" x2="45" y2="40" stroke="$brass" stroke-width="2.3" stroke-linecap="round"/>
-<line x1="27" y1="46" x2="39" y2="46" stroke="$brass" stroke-width="2.3" stroke-linecap="round"/>
-<polyline points="27,30 31,30 34,23 38,38 41,30 45,30" fill="none" stroke="$mint" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-"@
-        Send-LBBytes -Ctx $Ctx -Bytes ((New-Object Text.UTF8Encoding($false)).GetBytes($svg)) -Type 'image/svg+xml'
-        return $true
-    }
+    # the logo is the file Web\logo.svg (the BokerNet logo); it used to be a hard-coded old drawing here, so a new logo never showed
     $f = Join-Path (Join-Path $script:Root 'Web') $e[0]
     if ($e[0] -eq 'logo.svg' -and -not (Test-Path $f)) { $f = Join-Path $script:Root 'logbok-logo.svg' }
     if (-not (Test-Path $f)) { Send-LBJson -Ctx $Ctx -Obj @{ error = 'not found' } -Status 404; return $true }
