@@ -125,12 +125,12 @@ function Save-LBIngestState {
 $script:LBReportFields = @{}
 foreach ($pair in @(
     @(@(4624), 'TargetUserName,TargetDomainName,LogonType,IpAddress,WorkstationName,LogonProcessName,AuthenticationPackageName,ElevatedToken,TargetLogonId,ProcessName'),
-    @(@(4625), 'TargetUserName,TargetDomainName,LogonType,IpAddress,WorkstationName,Status,SubStatus,FailureReason,ProcessName'),
+    @(@(4625), 'TargetUserName,TargetDomainName,LogonType,IpAddress,IpPort,WorkstationName,Status,SubStatus,FailureReason,ProcessName,AuthenticationPackageName,LmPackageName,LogonProcessName'),
     @(@(4634, 4647), 'TargetUserName,TargetDomainName,LogonType,TargetLogonId'),
     @(@(4648), 'SubjectUserName,TargetUserName,TargetServerName,ProcessName,IpAddress'),
     @(@(4740), 'TargetUserName,TargetDomainName,SubjectUserName'),
     @(@(4767), 'TargetUserName,SubjectUserName'),
-    @(@(4771, 4768), 'TargetUserName,IpAddress,Status,ServiceName,TicketEncryptionType'),
+    @(@(4771, 4768), 'TargetUserName,IpAddress,IpPort,Status,ServiceName,TicketEncryptionType,PreAuthType'),
     @(@(4769), 'TargetUserName,ServiceName,IpAddress,Status,TicketEncryptionType'),
     @(@(4776), 'TargetUserName,Workstation,Status'),
     @(@(4778, 4779), 'AccountName,AccountDomain,ClientName,ClientAddress,SessionName'),
