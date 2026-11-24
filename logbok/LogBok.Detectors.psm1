@@ -852,6 +852,11 @@ function Invoke-DetectMemberServer {
             # اسکریپت‌های خودِ لاگ‌بوک (که متنِ این الگوها را دارند) نادیده گرفته می‌شوند
             $path = Get-LogBokEventField -Event $e -Name 'Path'
             if ($path -and ($path -like "$ownDir\*" -or $path -match '\\(LogBok|Agent)\\(LogBok\.|Run-|Console\\)')) { continue }
+            # the agent's own folder (writable only by SYSTEM / administrators) is LogBok's code, like the server folder above
+            if ($path -and $path -match '\\BokerNet\\LogBok Agent\\[^\\]+\.ps(m?)1$') { continue }
+            # LogBok's own GPO deploy script and the agent setup it copies to Windows\Temp decrypt agent.json (DPAPI) with
+            # FromBase64String — that one construct is not an attack sign there; any other indicator still alerts (v2.1.24)
+            $lbOwnPath = $path -and ($path -match '\\Machine\\Scripts\\Startup\\Deploy-LogBokAgent\.ps1$' -or $path -match '\\Windows\\Temp\\LogBok-Agent-Setup\\')
             $msg = Get-LogBokEventField -Event $e -Name 'ScriptBlockText'
             if (-not $msg) { $msg = ''; try { $msg = [string]$e.Message } catch {} }
             if ($msg -match 'LogBok\.Detectors|Invoke-DetectMemberServer') { continue }
@@ -868,8 +873,10 @@ function Invoke-DetectMemberServer {
                     -Key ("MSRV|PSLB|{0}|{1}" -f $e.MachineName,$e.RecordId)
                 continue
             }
-            if ($msg -match $suspPs) {
-                $hit = ([regex]::Matches($msg,$suspPs,'IgnoreCase') | ForEach-Object { $_.Value } | Select-Object -Unique) -join ', '
+            $msgChk = $msg
+            if ($lbOwnPath) { $msgChk = [regex]::Replace($msg, '\[Security\.Cryptography\.ProtectedData\]::Unprotect\(\[Convert\]::' + ('FromBase64' + 'String') + '\(', '', 'IgnoreCase') }
+            if ($msgChk -match $suspPs) {
+                $hit = ([regex]::Matches($msgChk,$suspPs,'IgnoreCase') | ForEach-Object { $_.Value } | Select-Object -Unique) -join ', '
                 $snippet = ($msg -split "`r?`n" | Select-Object -First 3) -join ' '
                 if ($snippet.Length -gt 300) { $snippet = $snippet.Substring(0,300) }
                 $f += New-Finding -Category 'MemberServer' -Severity 'Critical' -Machine $e.MachineName -Time $e.TimeCreated `
