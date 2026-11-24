@@ -40,10 +40,29 @@ function Read-LBJsonFile {
 function Write-LBJsonFile {
     param([string]$Path, $Obj)
     $json = $Obj | ConvertTo-Json -Depth 8
-    $tmp = "$Path.tmp"
-    [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))
-    Move-Item -LiteralPath $tmp -Destination $Path -Force
+    Write-LBAuthFileSafe -Path $Path -Text $json
 }
+# نوشتنِ امن و هم‌زمان‌پذیرِ فایل: tmp یکتا + قفلِ نام‌دار + جایگزینیِ اتمی با چند بار تلاش
+# safe concurrent write: unique temp file, a named lock per path, atomic replace with retries
+# (two parallel requests used the same .tmp name -> "Cannot create a file when that file already exists" / ".tmp does not exist")
+function Write-LBAuthFileSafe {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Text)
+    $name = 'Global\LBW-' + ([BitConverter]::ToString([Security.Cryptography.SHA1]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($Path.ToLowerInvariant())))).Replace('-', '').Substring(0, 24)
+    $m = $null; $own = $false
+    try { $m = New-Object Threading.Mutex($false, $name); try { $own = $m.WaitOne(5000) } catch [Threading.AbandonedMutexException] { $own = $true } } catch { }
+    try {
+        $tmp = '{0}.{1}.tmp' -f $Path, ([guid]::NewGuid().ToString('N').Substring(0, 8))
+        [IO.File]::WriteAllText($tmp, $Text, (New-Object Text.UTF8Encoding($false)))
+        for ($i = 0; $i -lt 6; $i++) {
+            try {
+                if ([IO.File]::Exists($Path)) { [IO.File]::Replace($tmp, $Path, $null) } else { [IO.File]::Move($tmp, $Path) }
+                return
+            } catch { Start-Sleep -Milliseconds (40 * ($i + 1)) }
+        }
+        [IO.File]::Copy($tmp, $Path, $true); Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    } finally { if ($m) { if ($own) { try { $m.ReleaseMutex() } catch { } }; $m.Dispose() } }
+}
+
 
 # --- password hashing (PBKDF2-SHA256) ---------------------------------------
 function New-LBPwHash {
