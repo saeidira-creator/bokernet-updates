@@ -342,7 +342,9 @@ function Test-LBConnTarget {
         $age = if ($at) { [int]((Get-Date) - $at).TotalMinutes } else { -1 }
         $online = ($age -ge 0 -and $age -le 10)
         $pr = Update-LBPresence -StateDir $sdir -HostName $nm -Online $online -LastSeen $at
-        $usuallyOff = ($pr -and $pr.Learned -and $pr.OnRatio -lt 0.25)
+        # «معمولاً خاموش» فقط تا ۳ روز معتبر است؛ بیشتر از آن یعنی مشکل (AFS ۲۰ روز خاموش بود و OK نشان می‌داد)
+        # "usually off" only covers up to 3 days; longer silence is a problem (AFS showed OK after 20 days off)
+        $usuallyOff = ($pr -and $pr.Learned -and $pr.OnRatio -lt 0.25 -and $age -ge 0 -and $age -le 4320)
         # off at its usual time = OK; off up to 3 days (night, weekend, holiday) = Warn without alarm; longer = Fail
         $st = if ($online) { 'OK' } elseif ($at -and $usuallyOff) { 'OK' } elseif ($age -ge 0 -and $age -le 4320) { 'Warn' } else { 'Fail' }
         $pat = if ($pr -and $pr.Pattern) { ' · ' + $pr.Pattern } else { '' }
