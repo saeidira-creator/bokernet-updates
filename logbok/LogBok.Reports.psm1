@@ -99,7 +99,7 @@ $script:Cats = [ordered]@{
 $script:Reports = @(
     # ---------------- ورود | logon ----------------
     (New-LBRep 'logon-success' 'logon' 'ورودهای موفق' 'Successful logons' 'ورودِ کاربران (بدونِ حساب‌های سیستمی و سرویس‌ها)' 'User logons (machine accounts and services excluded)' -Ids 4624 -Where { param($r) -not (Test-LBMachineAccount $r.user) -and (Get-LBD $r 'LogonType') -notin '0', '5' } -Cols @($cT, $cH, $cU, $cLT, $cI, $cWs, @('d:AuthenticationPackageName', 'روش', 'Package')))
-    (New-LBRep 'logon-failed' 'logon' 'ورودهای ناموفق' 'Failed logons' 'هر تلاشِ ناموفق با دلیل و مبدأ' 'Every failed logon with reason and source' -Ids 4625 -Cols @($cT, $cH, $cU, $cLT, $cI, $cWs, @('c:reason', 'دلیل', 'Reason'), @('c:proc', 'برنامه', 'Process')))
+    (New-LBRep 'logon-failed' 'logon' 'ورودهای ناموفق' 'Failed logons' 'هر تلاشِ ناموفق با دلیل و مبدأ' 'Every failed logon with reason and source' -Ids 4625 -Cols @($cT, $cH, $cU, $cLT, @('c:proto', 'پروتکل', 'Protocol'), $cI, @('d:IpPort', 'پورت', 'Port'), $cWs, @('c:reason', 'دلیل', 'Reason'), @('c:proc', 'برنامه', 'Process')))
     (New-LBRep 'logon-rdp' 'logon' 'ورود و اتصالِ ریموت‌دسکتاپ' 'Remote Desktop activity' 'ورودِ RDP، اتصالِ دوباره و قطعِ نشست' 'RDP logons, reconnects and disconnects' -Ids 4624, 4778, 4779 -Where { param($r) $r.id -ne 4624 -or ((Get-LBD $r 'LogonType') -eq '10' -and -not (Test-LBMachineAccount $r.user)) } -Cols @($cT, $cH, $cU, @('c:rdpact', 'رویداد', 'Action'), $cI, @('d:ClientName', 'نامِ سیستمِ کاربر', 'Client name')))
     (New-LBRep 'logon-admin' 'logon' 'ورودهای با دسترسیِ مدیر' 'Administrator logons' 'ورودهایی که توکنِ ارتقایافته (Admin) دارند' 'Logons with an elevated (admin) token' -Ids 4624 -Where { param($r) (Get-LBD $r 'ElevatedToken') -eq '%%1842' -and -not (Test-LBMachineAccount $r.user) -and (Get-LBD $r 'LogonType') -in '2', '3', '10', '11' } -Cols @($cT, $cH, $cU, $cLT, $cI, $cWs))
     (New-LBRep 'logon-afterhours' 'logon' 'ورود بیرون از ساعتِ کاری' 'Logons outside business hours' 'ورودِ محلی/RDP بیرون از ساعتِ کاریِ تعریف‌شده در هشدارها' 'Interactive/RDP logons outside the business hours set in Alerts' -Ids 4624 -Where { param($r) -not (Test-LBMachineAccount $r.user) -and (Get-LBD $r 'LogonType') -in '2', '10', '11' -and -not (Test-LBRepBusinessHours $r.time) } -Cols @($cT, $cH, $cU, $cLT, $cI))
@@ -114,6 +114,7 @@ $script:Reports = @(
     (New-LBRep 'logon-logoffs' 'logon' 'خروج‌ها' 'Logoffs' 'خروجِ کاربر از نشست' 'User logoffs' -Ids 4634, 4647 -Where { param($r) -not (Test-LBMachineAccount $r.user) -and (Get-LBD $r 'LogonType') -notin '3', '5', '0' } -Cols @($cT, $cH, $cU, $cLT))
     (New-LBRep 'agg-failed-ip' 'logon' 'ناموفق‌ها به تفکیکِ IP' 'Failed logons by source IP' 'کدام IPها بیشترین تلاشِ ناموفق را داشته‌اند' 'Which IPs failed most' -Ids 4625 -Group 'ip' -Cols @(,$cI))
     (New-LBRep 'agg-failed-user' 'logon' 'ناموفق‌ها به تفکیکِ کاربر' 'Failed logons by user' 'کدام حساب‌ها بیشترین ورودِ ناموفق را داشته‌اند' 'Which accounts failed most' -Ids 4625 -Group 'user', 'host' -Cols @($cU, $cH))
+    (New-LBRep 'agg-failed-source' 'logon' 'ناموفق‌ها: چه کسی، از کجا، با چه پروتکلی' 'Failed logons: who, from where, how' 'برای هر کاربر: روی کدام سیستم، از کدام IP و سیستمِ مبدأ، با چه پروتکل و نوعِ ورود، به چه دلیل و چند بار' 'Per user: on which computer, from which IP and workstation, with which protocol and logon type, why, and how many times' -Ids 4625 -Where { param($r) -not (Test-LBMachineAccount $r.user) } -Group 'user', 'host', 'ip', 'd:WorkstationName', 'c:proto', 'c:ltype', 'c:reason' -Cols @($cU, $cH, $cI, $cWs, @('c:proto', 'پروتکل', 'Protocol'), $cLT, @('c:reason', 'دلیل', 'Reason')))
     (New-LBRep 'agg-logon-user' 'logon' 'ورودها به تفکیکِ کاربر و سیستم' 'Logons by user and computer' 'هر کاربر روی کدام سیستم‌ها و چند بار وارد شده' 'Where and how often each user logged on' -Ids 4624 -Where { param($r) -not (Test-LBMachineAccount $r.user) -and (Get-LBD $r 'LogonType') -in '2', '10', '11' } -Group 'user', 'host' -Cols @($cU, $cH))
     # ---------------- حساب‌ها | accounts ----------------
     (New-LBRep 'user-created' 'account' 'کاربرانِ ساخته‌شده' 'Users created' '' '' -Ids 4720 -Cols @($cT, $cH, $cU, $cBy))
@@ -219,6 +220,7 @@ function Get-LBRepValue {
     switch ($k.Substring(2)) {
         'ltype'   { return (Get-LBLogonTypeText (Get-LBD $r 'LogonType') $Lang) }
         'reason'  { return (Get-LBStatusText (Get-LBD $r 'Status') (Get-LBD $r 'SubStatus') $Lang) }
+        'proto'   { if ($id -eq 4771 -or $id -eq 4768) { return 'Kerberos' }; if ($id -eq 4776) { return 'NTLM' }; $lm = Get-LBD $r 'LmPackageName'; if ($lm) { return $lm }; return (Get-LBD $r 'AuthenticationPackageName') }
         'krb'     { return (Get-LBKrbText (Get-LBD $r 'Status') $Lang) }
         'ntlm'    { return (Get-LBStatusText (Get-LBD $r 'Status') '' $Lang) }
         'proc'    { return (Get-LBShortName (Get-LBD $r 'ProcessName')) }
