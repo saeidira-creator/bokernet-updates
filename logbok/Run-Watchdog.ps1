@@ -426,9 +426,15 @@ try {
     if ($fullEngine -and (Test-Path (Join-Path $root 'LogBok.Diag.psm1'))) {
         Import-Module (Join-Path $root 'LogBok.Diag.psm1') -Force -DisableNameChecking
         if (Test-Path (Join-Path $root 'Tools\privatekey.xml')) {
-            if (Test-Due 'diagpull' 0.08) { Receive-LBDiagnostics -Root $root | Out-Null; Set-Done 'diagpull' }
+            # v2.1.26: a failed pull is written to the log (once an hour) instead of failing silently
+            if (Test-Due 'diagpull' 0.08) {
+                try { [void](Receive-LBDiagnostics -Root $root) }
+                catch { if (Test-Due 'diagpull-err' 1) { try { Write-LogBokLog -Message ("دریافتِ گزارش‌های تشخیصیِ مشتری‌ها ناموفق بود | diagnostics pull failed: " + $_.Exception.Message) -Level WARN -Config $cfg } catch { }; Set-Done 'diagpull-err' } }
+                Set-Done 'diagpull'
+            }
         } else {
-            Send-LBDiagnostics -Root $root -Config $cfg -StateDir $stateDir
+            try { Send-LBDiagnostics -Root $root -Config $cfg -StateDir $stateDir }
+            catch { if (Test-Due 'diagsend-err' 1) { try { Write-LogBokLog -Message ("ارسالِ گزارشِ تشخیصی به سازنده ناموفق بود | diagnostics upload failed: " + $_.Exception.Message) -Level WARN -Config $cfg } catch { }; Set-Done 'diagsend-err' } }
         }
     }
 } catch {}
