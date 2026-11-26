@@ -157,16 +157,19 @@ if ($cfg.Enabled.Archive -ne $false) {
 }
 
 # تاریخچهٔ یافته‌ها با شناسه (برای باز کردنِ جزئیات در کنسولِ وب) | findings history
-try { Import-Module (Join-Path $root 'LogBok.Findings.psm1') -Force -DisableNameChecking; [void](Save-LBFindings -Config $cfg -Findings $findings) }
+# فقط یافته‌های تازه هشدار می‌شوند: بازهٔ اسکن یک دقیقه هم‌پوشانی دارد و همان رویداد دوباره خوانده می‌شود
+# only NEW findings are alerted: the scan window overlaps by a minute, so the same event is read twice (v2.1.26)
+$fresh = $findings
+try { Import-Module (Join-Path $root 'LogBok.Findings.psm1') -Force -DisableNameChecking; $fresh = @(Save-LBFindings -Config $cfg -Findings $findings -PassThru) }
 catch { Write-LogBokLog -Message "خطا در ذخیرهٔ تاریخچهٔ یافته‌ها: $($_.Exception.Message)" -Level WARN -Config $cfg }
 
 # ارسالِ هشدار طبقِ پروفایل‌های هشدار (گیرنده‌ها، شدت، دسته، سیستم، ساعتِ کاری)؛
 # بدونِ پروفایل: مثلِ قبل، موارد بحرانی به Mail.To | routed alerts per alert profile
-$critical = @($findings | Where-Object { $_.Severity -eq 'Critical' })
+$critical = @($fresh | Where-Object { $_.Severity -eq 'Critical' })
 $sent = 0
 try {
     Import-Module (Join-Path $root 'LogBok.Alerts.psm1') -Force -DisableNameChecking
-    $sent = Send-LBRoutedAlerts -Config $cfg -Findings $findings -State $state
+    $sent = Send-LBRoutedAlerts -Config $cfg -Findings $fresh -State $state
 } catch { Write-LogBokLog -Message "خطا در ارسالِ هشدار: $($_.Exception.Message)" -Level WARN -Config $cfg }
 
 $state['LastRealtimeRun'] = (Get-Date).ToString('o', [Globalization.CultureInfo]::InvariantCulture)
