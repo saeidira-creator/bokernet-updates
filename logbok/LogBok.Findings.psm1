@@ -24,8 +24,10 @@ function Get-LBFindingId {
 
 # ذخیرهٔ یافته‌های تازه (تکراری‌ها نادیده) | persist new findings (dedupe by id)
 function Save-LBFindings {
-    param($Config, [object[]]$Findings)
-    if (-not $Findings -or -not @($Findings).Count) { return 0 }
+    param($Config, [object[]]$Findings, [switch]$PassThru)
+    # -PassThru returns only the findings not seen before (v2.1.26: alerts use this, so an event read twice is mailed once)
+    if (-not $Findings -or -not @($Findings).Count) { if ($PassThru) { return ,@() }; return 0 }
+    $fresh = New-Object System.Collections.ArrayList
     $dir = Get-LBFindingsDir -Config $Config
     $seenF = Join-Path $dir 'seen.json'
     $seen = @{}
@@ -36,6 +38,7 @@ function Save-LBFindings {
         $id = Get-LBFindingId $f
         if ($seen.ContainsKey($id)) { continue }
         $seen[$id] = $true
+        [void]$fresh.Add($f)
         $tm = if ($f.Time -is [datetime]) { $f.Time } else { try { [datetime]::Parse([string]$f.Time, $script:Inv) } catch { Get-Date } }
         $o = [ordered]@{ id=$id; t=$tm.ToString('o', $script:Inv); cat=[string]$f.Category; sev=[string]$f.Severity; host=[string]$f.Machine
                          title=[string]$f.Title; det=[string]$f.Details; key=[string]$f.Key; mitre=[string]$f.Mitre }
@@ -59,6 +62,7 @@ function Save-LBFindings {
     try { [IO.File]::WriteAllText($seenF, (ConvertTo-Json -InputObject @($ids) -Compress), (New-Object Text.UTF8Encoding($false))) } catch { }
     # نگه‌داری ۱۸۰ روز | retention
     Get-ChildItem $dir -Filter '*.ndjson' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-180) } | Remove-Item -Force -ErrorAction SilentlyContinue
+    if ($PassThru) { return ,$fresh.ToArray() }
     return $n
 }
 
