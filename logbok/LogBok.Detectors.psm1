@@ -15,6 +15,53 @@ function New-Finding {
     }
 }
 
+# «یک‌بار در روز» برای یافته‌هایی که با هر اجرا تکرار می‌شوند | report a repeating thing once per day (v2.1.26)
+#  state\seen-once.json: hashed key -> last report time (UTC). Used for repeating PowerShell scripts, GPO edits, firewall lists, AppLocker blocks.
+$script:LBSeenOnce = $null
+function Test-LBSeenOnce {
+    param($Config, [string]$Bucket, [string]$Key, [double]$Hours = 24)
+    $sd = $null; try { $sd = Get-LBStateDir -Config $Config } catch { }
+    if (-not $sd) { $sd = Join-Path (Split-Path -Parent $PSCommandPath) 'state' }
+    $file = Join-Path $sd 'seen-once.json'
+    if ($null -eq $script:LBSeenOnce) {
+        $script:LBSeenOnce = @{}
+        if (Test-Path $file) { try { $o = Get-Content $file -Raw -Encoding UTF8 | ConvertFrom-Json; foreach ($p in $o.PSObject.Properties) { $script:LBSeenOnce[$p.Name] = [string]$p.Value } } catch { } }
+    }
+    $sha = [Security.Cryptography.SHA1]::Create()
+    try { $h = $Bucket + ':' + (-join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Key))[0..9] | ForEach-Object { $_.ToString('x2') })) } finally { $sha.Dispose() }
+    $now = [DateTime]::UtcNow
+    $prev = $script:LBSeenOnce[$h]
+    if ($prev) { $pt = [datetime]::MinValue; if ([datetime]::TryParse($prev, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$pt) -and $pt.ToUniversalTime() -gt $now.AddHours(-$Hours)) { return $false } }
+    $script:LBSeenOnce[$h] = $now.ToString('o', [Globalization.CultureInfo]::InvariantCulture)
+    # drop entries older than 8 days and save
+    $cut = $now.AddDays(-8); $keep = [ordered]@{}
+    foreach ($k in @($script:LBSeenOnce.Keys)) { $t0 = [datetime]::MinValue; if ([datetime]::TryParse([string]$script:LBSeenOnce[$k], [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$t0) -and $t0.ToUniversalTime() -gt $cut) { $keep[$k] = $script:LBSeenOnce[$k] } }
+    $script:LBSeenOnce = @{}; foreach ($k in $keep.Keys) { $script:LBSeenOnce[$k] = $keep[$k] }
+    try { $tmp = $file + '.' + [guid]::NewGuid().ToString('N') + '.tmp'; [IO.File]::WriteAllText($tmp, (ConvertTo-Json -InputObject $keep -Compress), (New-Object Text.UTF8Encoding($false))); Move-Item -LiteralPath $tmp -Destination $file -Force } catch { try { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } catch { } }
+    return $true
+}
+function Test-LBPsSeenOnce { param($Config, [string]$Key) return (Test-LBSeenOnce -Config $Config -Bucket 'ps' -Key $Key -Hours 24) }
+
+# نامِ نمایشیِ GPO از روی GUID (با کش) | GPO display name from its GUID (cached)
+$script:LBGpoNames = @{}
+function Get-LBGpoName {
+    param([string]$Guid)
+    if (-not $Guid -or $Guid -notmatch '^\{[0-9A-Fa-f\-]{36}\}$') { return [string]$Guid }
+    $g = $Guid.ToUpper()
+    if ($script:LBGpoNames.ContainsKey($g)) { return $script:LBGpoNames[$g] }
+    $n = $g
+    switch ($g) { '{31B2F340-016D-11D2-945F-00C04FB984F9}' { $n = 'Default Domain Policy' } '{6AC1786C-016F-11D2-945F-00C04FB984F9}' { $n = 'Default Domain Controllers Policy' } }
+    if ($n -eq $g) {
+        try {
+            $root = [ADSI]'LDAP://RootDSE'; $dc = [string]$root.defaultNamingContext
+            $o = [ADSI]("LDAP://CN={0},CN=Policies,CN=System,{1}" -f $g, $dc)
+            $dn0 = [string]$o.displayName; if ($dn0) { $n = $dn0 }
+        } catch { }
+    }
+    $script:LBGpoNames[$g] = $n
+    return $n
+}
+
 # کمکی: منابعِ لاگِ Application برای رویدادهای خودِ لاگ‌بوک (9001…9016)
 #  در حالت Collector علاوه بر ForwardedEvents، Application خودِ سرورِ موتور هم
 #  خوانده می‌شود (وگرنه هشدارهای واچ‌داگِ خودِ سرور گم می‌شد).
@@ -611,9 +658,19 @@ function Invoke-DetectFwGovernance {
         # event id 9013 is shared with agent move/update notices; only firewall-governance
         # messages ("UNAUTHORIZED FIREWALL RULE …") are unauthorized-rule findings.
         foreach ($e in (Get-LogBokEvents -LogName $log -Id 9013 -StartTime $Start -ComputerName $s.Computer -Config $Config | Where-Object { $_.ProviderName -eq 'LogBok' -and (Get-EvtMessage $_) -match 'UNAUTHORIZED FIREWALL' })) {
+            # v2.1.26: say plainly which rules, one per line, instead of one long technical line
+            $raw = ''; try { $raw = [string]$e.Message } catch { }
+            $list = ''; $mm = [regex]::Match($raw, '\)\s*:\s*(.+)$', 'Singleline'); if ($mm.Success) { $list = $mm.Groups[1].Value }
+            $rules = @($list -split '\s;\s' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $names = @($rules | ForEach-Object { ($_ -replace '\s*\[.*$', '').Trim() })
+            $first = ($names | Select-Object -First 2) -join '، '
+            if ($names.Count -gt 2) { $first += ' …' }
+            $lines = ($rules | Select-Object -First 25 | ForEach-Object { '• ' + ($_ -replace '\[Inbound/Allow\]', '[ورودی/مجاز | in/allow]' -replace '\[Outbound/Allow\]', '[خروجی/مجاز | out/allow]' -replace '\[Inbound/Block\]', '[ورودی/مسدود | in/block]' -replace '\[Outbound/Block\]', '[خروجی/مسدود | out/block]') }) -join "`n"
+            if ($rules.Count -gt 25) { $lines += "`n… +" + ($rules.Count - 25) }
             $f += New-Finding -Category 'FwGovernance' -Severity 'Warning' -Machine $e.MachineName -Time $e.TimeCreated `
-                -Title 'رولِ فایروالِ غیرمجاز (دستی) شناسایی شد | Unauthorized firewall rule' `
-                -Details (Get-EvtMessage $e) -Key ("FWGOV|{0}|{1}" -f $e.MachineName,$e.RecordId)
+                -Title ("{0} قاعدهٔ فایروالِ دستی (خارج از GPO) روی {1} | {0} manual firewall rule(s) outside GPO on {1}" -f $rules.Count, $e.MachineName) `
+                -Details ("{0}`nاین قواعد دستی روی خودِ سیستم ساخته شده‌اند (معمولاً هنگامِ نصبِ برنامه) و در GPO نیستند. اگر لازم‌اند کاری نکنید، یا این مورد را در کنسول «بی‌صدا» کنید؛ اگر ناشناخته‌اند، حذفشان کنید. | These rules were made on the computer itself (usually by a program installer) and are not in GPO. If they are needed do nothing, or Mute this item in the console; if unknown, remove them." -f $lines) `
+                -Key ("FWGOV|{0}|{1}" -f $e.MachineName,$e.RecordId)
         }
     }
     return $f
@@ -744,6 +801,10 @@ function Invoke-DetectGPO {
     foreach ($s in (Get-LogBokSecuritySources -Config $Config)) {
         $log = if ($Config.CollectionMode -eq 'Collector') { $Config.ForwardedLog } else { 'Security' }
         # 5136 = تغییرِ صفتِ شیءِ دایرکتوری (شاملِ GPO)، 5137 = ساختِ شیء، 5141 = حذفِ شیء
+        # v2.1.26: one GPO edit writes 5-20 of these events (version, extension lists, sub-objects…). They are now
+        # grouped into ONE readable finding per GPO and person: the GPO's name, who, what kind of change. Edits LogBok
+        # makes to its own agent GPO are routine (Info); linking/unlinking a GPO to an OU or the domain is reported too.
+        $gpoGrp = [ordered]@{}
         foreach ($e in (Get-LogBokEvents -LogName $log -Id @(5136,5137,5141) -StartTime $Start -ComputerName $s.Computer -Config $Config)) {
             $cls  = Get-LogBokEventField -Event $e -Name 'ObjectClass'
             $dn   = Get-LogBokEventField -Event $e -Name 'ObjectDN'
@@ -752,14 +813,55 @@ function Invoke-DetectGPO {
             $val  = Get-LogBokEventField -Event $e -Name 'AttributeValue'
             $op   = Get-LogBokEventField -Event $e -Name 'OperationType'
             $isGpo = ($cls -eq 'groupPolicyContainer') -or ($dn -match 'CN=Policies,CN=System')
-            $cat = if ($isGpo) { 'GPO' } else { 'ActiveDirectory' }
-            $sev = if ($isGpo) { 'Critical' } else { 'Info' }
-            $opTxt = switch ("$op") { '%%14674'{'افزودنِ مقدار'} '%%14675'{'حذفِ مقدار'} default{"$op"} }
-            $title = if ($isGpo) { 'تغییرِ Group Policy (GPO) | GPO change' } else { 'تغییرِ صفتِ شیءِ AD | AD attribute change' }
-            $f += New-Finding -Category $cat -Severity $sev -Machine $e.MachineName -Time $e.TimeCreated `
-                -Title $title `
-                -Details ("شیء: {0}`nصفت: {1} | عملیات: {2} | مقدار: {3}`nتوسط: {4} | رویداد: {5}" -f $dn,$attr,$opTxt,$val,$by,$e.Id) `
-                -Key ("GPO|{0}|{1}" -f $e.MachineName,$e.RecordId)
+            $isLink = (-not $isGpo) -and ($attr -eq 'gPLink' -or $attr -eq 'gPOptions')
+            if (-not $isGpo -and -not $isLink) {
+                $opTxt = switch ("$op") { '%%14674'{'افزودنِ مقدار'} '%%14675'{'حذفِ مقدار'} default{"$op"} }
+                $f += New-Finding -Category 'ActiveDirectory' -Severity 'Info' -Machine $e.MachineName -Time $e.TimeCreated `
+                    -Title 'تغییرِ صفتِ شیءِ AD | AD attribute change' `
+                    -Details ("شیء: {0}`nصفت: {1} | عملیات: {2} | مقدار: {3}`nتوسط: {4} | رویداد: {5}" -f $dn,$attr,$opTxt,$val,$by,$e.Id) `
+                    -Key ("GPO|{0}|{1}" -f $e.MachineName,$e.RecordId)
+                continue
+            }
+            if ($isLink) { $gid = 'LINK:' + $dn } else { $gid = ''; $m = [regex]::Match([string]$dn, 'CN=(\{[0-9A-Fa-f\-]{36}\}),CN=Policies', 'IgnoreCase'); $gid = $(if ($m.Success) { $m.Groups[1].Value.ToUpper() } else { [string]$dn }) }
+            $gk = '{0}|{1}|{2}' -f $e.MachineName, $gid, $by
+            if (-not $gpoGrp.Contains($gk)) { $gpoGrp[$gk] = @{ E = $e; Gid = $gid; By = $by; Link = $isLink; Dn = $dn; N = 0; Attrs = @(); New = $false; Del = $false; Vals = @() } }
+            $g = $gpoGrp[$gk]; $g.N++
+            if ($e.TimeCreated -gt $g.E.TimeCreated) { $g.E = $e }
+            if ($e.Id -eq 5137 -and $cls -eq 'groupPolicyContainer') { $g.New = $true }
+            if ($e.Id -eq 5141 -and $cls -eq 'groupPolicyContainer') { $g.Del = $true }
+            if ($attr -and $g.Attrs -notcontains $attr) { $g.Attrs += $attr }
+            if ($isLink -and $val -and $g.Vals.Count -lt 4) { $g.Vals += [string]$val }
+        }
+        foreach ($g in $gpoGrp.Values) {
+            $e = $g.E
+            if ($g.Link) {
+                $names = @(); foreach ($v in $g.Vals) { foreach ($mm in [regex]::Matches($v, '\{[0-9A-Fa-f\-]{36}\}')) { $names += (Get-LBGpoName -Guid $mm.Value) } }
+                $names = @($names | Select-Object -Unique)
+                $tgt = ([string]$g.Dn -split ',')[0] -replace '^(OU|DC|CN)=', ''
+                $f += New-Finding -Category 'GPO' -Severity 'Warning' -Machine $e.MachineName -Time $e.TimeCreated `
+                    -Title ("پیوندِ GPO روی «{0}» تغییر کرد | GPO links changed on '{0}'" -f $tgt) `
+                    -Details ("محل | where: {0}`nتوسط | by: {1}`nGPOهای پیوندخورده‌ی فعلی | GPOs now linked: {2}" -f $g.Dn, $g.By, $(if ($names.Count) { $names -join ', ' } else { '-' })) `
+                    -Key ("GPOLINK|{0}|{1}" -f $e.MachineName, $e.RecordId)
+                continue
+            }
+            $name = Get-LBGpoName -Guid $g.Gid
+            $own = ($name -like 'LogBok*')
+            $kind = if ($g.New) { 'ساخته شد | created' } elseif ($g.Del) { 'حذف شد | deleted' } else { 'ویرایش شد | edited' }
+            $what = @()
+            foreach ($a in $g.Attrs) { switch -Wildcard ($a) {
+                'gPCMachineExtensionNames' { $what += 'تنظیماتِ بخشِ Computer | Computer settings' }
+                'gPCUserExtensionNames'    { $what += 'تنظیماتِ بخشِ User | User settings' }
+                'flags'                    { $what += 'فعال/غیرفعال‌شدنِ بخش‌ها | enabled/disabled parts' }
+                'nTSecurityDescriptor'     { $what += 'دسترسی‌ها/فیلترِ امنیتی | permissions / security filtering' }
+                'displayName'              { $what += 'نام | name' }
+                'gPCWQLFilter'             { $what += 'فیلترِ WMI | WMI filter' }
+            } }
+            $what = @($what | Select-Object -Unique)
+            $sev = if ($own) { 'Info' } elseif ($g.Del) { 'Critical' } else { 'Warning' }
+            $ttl = if ($own) { "GPOِ خودِ لاگ‌بوک به‌روز شد «{0}» | LogBok updated its own agent GPO '{0}'" -f $name } else { "GPO «{0}» {1} | GPO '{0}' {2}" -f $name, ($kind -split ' \| ')[0], ($kind -split ' \| ')[1] }
+            $f += New-Finding -Category 'GPO' -Severity $sev -Machine $e.MachineName -Time $e.TimeCreated -Title $ttl `
+                -Details ("GPO: {0} {1}`nتوسط | by: {2}`nچه چیزی | what: {3}`nتعدادِ رویدادهای ثبت‌شده | events: {4}" -f $name, $g.Gid, $g.By, $(if ($what.Count) { $what -join '، ' } else { 'محتوای GPO (فایل‌های SYSVOL/نسخه) | GPO content (SYSVOL files / version)' }), $g.N) `
+                -Key ("GPOEDIT|{0}|{1}|{2}|{3}" -f $e.MachineName, $g.Gid, $g.By, $e.RecordId)
         }
         # 4739 = تغییرِ سیاستِ دامنه | domain policy changed
         foreach ($e in (Get-LogBokEvents -LogName $log -Id 4739 -StartTime $Start -ComputerName $s.Computer -Config $Config)) {
@@ -819,14 +921,29 @@ function Invoke-DetectMemberServer {
             $tn = Get-LogBokEventField -Event $e -Name 'TaskName'
             $by = Get-LogBokEventField -Event $e -Name 'SubjectUserName'
             if ($tn -like '\Microsoft\*' -or $tn -like '\LogBok\*') { continue }  # توکار/خودمان
+            # v2.1.26: an existing task re-saved by Windows/the program itself (SYSTEM / computer account) is routine
+            # (Edge/Chrome/Office/OneDrive updaters do it all day). New tasks and changes made by a person are reported,
+            # each task once a day, with the program it runs.
+            $sys0 = ($by -like '*$' -or $by -eq 'SYSTEM' -or $by -eq '-' -or -not $by)
+            if ($e.Id -eq 4702 -and $sys0) { continue }
+            if (-not (Test-LBSeenOnce -Config $Config -Bucket 'task' -Key ('{0}|{1}|{2}|{3}' -f $e.MachineName, $tn, $e.Id, $by))) { continue }
+            $cmd = ''
+            try { $tc = Get-LogBokEventField -Event $e -Name 'TaskContent'; if (-not $tc) { $tc = Get-LogBokEventField -Event $e -Name 'TaskContentNew' }
+                  $mm = [regex]::Matches([string]$tc, '<Command>([^<]*)</Command>(?:\s*<Arguments>([^<]*)</Arguments>)?'); if ($mm.Count) { $cmd = (($mm | Select-Object -First 2 | ForEach-Object { ($_.Groups[1].Value + ' ' + $_.Groups[2].Value).Trim() }) -join ' ; ') } } catch { }
+            if ($cmd.Length -gt 300) { $cmd = $cmd.Substring(0, 300) + '…' }
+            $verb = if ($e.Id -eq 4698) { 'ساخته شد | created' } else { 'تغییر کرد | changed' }
             $f += New-Finding -Category 'MemberServer' -Severity 'Warning' -Machine $e.MachineName -Time $e.TimeCreated `
-                -Title 'ساخت/تغییرِ Task زمان‌بندی‌شده | Scheduled task created/changed' `
-                -Details ("Task: {0} | توسط: {1} | سیستم: {2}" -f $tn,$by,$e.MachineName) -Key ("MSRV|TASK|{0}|{1}" -f $e.MachineName,$e.RecordId)
+                -Title ("Task زمان‌بندی «{0}» {1} | Scheduled task '{0}' {2}" -f $tn, ($verb -split ' \| ')[0], ($verb -split ' \| ')[1]) `
+                -Details ("Task: {0}`nتوسط | by: {1}`nچه اجرا می‌کند | runs: {2}`nسیستم | computer: {3}" -f $tn,$by,$(if ($cmd) { $cmd } else { '-' }),$e.MachineName) -Key ("MSRV|TASK|{0}|{1}" -f $e.MachineName,$e.RecordId)
         }
-        # 7045 = نصبِ سرویسِ جدید (System) | new service installed
+        # 7045 = نصبِ سرویسِ جدید (System) | new service installed — with its name, program and account
         foreach ($e in (Get-LogBokEvents -LogName $sys -Id 7045 -StartTime $Start -ComputerName $s.Computer -Config $Config)) {
+            $svn = ''; $img = ''; $acc = ''
+            try { $svn = [string]$e.Properties[0].Value; $img = [string]$e.Properties[1].Value; $acc = [string]$e.Properties[4].Value } catch { }
+            if (-not $svn) { $svn = Get-EvtMessage $e }
             $f += New-Finding -Category 'MemberServer' -Severity 'Warning' -Machine $e.MachineName -Time $e.TimeCreated `
-                -Title 'نصبِ سرویسِ جدید | New service installed' -Details (Get-EvtMessage $e) `
+                -Title ("سرویسِ جدید نصب شد: {0} | New service installed: {0}" -f $svn) `
+                -Details ("سرویس | service: {0}`nبرنامه | program: {1}`nحساب | account: {2}`nسیستم | computer: {3}" -f $svn, $(if ($img) { $img } else { '-' }), $(if ($acc) { $acc } else { '-' }), $e.MachineName) `
                 -Key ("MSRV|SVC|{0}|{1}" -f $e.MachineName,$e.RecordId)
         }
 
@@ -846,6 +963,11 @@ function Invoke-DetectMemberServer {
             ('Virtual' + 'Alloc'), ('Mi' + 'mikatz'), ('sek' + 'urlsa'), ('Invoke-Shell' + 'code'),
             ('Amsi' + 'Utils'), ('amsi' + 'InitFailed')
         ) -join '|')
+        # sign groups used to grade a script (v2.1.26)
+        $psStrong = (@(('Virtual' + 'Alloc'), ('Mi' + 'mikatz'), ('sek' + 'urlsa'), ('Invoke-Shell' + 'code'), ('Amsi' + 'Utils'), ('amsi' + 'InitFailed')) -join '|')
+        $psFetch  = (@(('Download' + 'String'), ('Download' + 'File'), ('Download' + 'Data'), ('Net\.Web' + 'Client'), ('Invoke-Web' + 'Request'), '\biwr\b', ('Start-Bits' + 'Transfer')) -join '|')
+        $psExec   = (@(('Invoke-' + 'Expression'), '\bIEX\b', '\|\s*iex\b') -join '|')
+        $psDecode = (@(('FromBase64' + 'String'), 'EncodedCommand') -join '|')
         $ownDir = Split-Path -Parent $PSCommandPath
         foreach ($e in (Get-LogBokEvents -LogName $psLog -Id 4104 -StartTime $Start -ComputerName $s.Computer -Config $Config)) {
             if ($e.Id -ne 4104) { continue }
@@ -876,12 +998,31 @@ function Invoke-DetectMemberServer {
             $msgChk = $msg
             if ($lbOwnPath) { $msgChk = [regex]::Replace($msg, '\[Security\.Cryptography\.ProtectedData\]::Unprotect\(\[Convert\]::' + ('FromBase64' + 'String') + '\(', '', 'IgnoreCase') }
             if ($msgChk -match $suspPs) {
-                $hit = ([regex]::Matches($msgChk,$suspPs,'IgnoreCase') | ForEach-Object { $_.Value } | Select-Object -Unique) -join ', '
-                $snippet = ($msg -split "`r?`n" | Select-Object -First 3) -join ' '
-                if ($snippet.Length -gt 300) { $snippet = $snippet.Substring(0,300) }
-                $f += New-Finding -Category 'MemberServer' -Severity 'Critical' -Machine $e.MachineName -Time $e.TimeCreated `
-                    -Title ("اسکریپتِ PowerShell مشکوک | Suspicious PowerShell ({0})" -f $hit) `
-                    -Details ("سیستم: {0}`nنشانه‌ها: {1}`nبخشی از اسکریپت: {2}" -f $e.MachineName,$hit,$snippet) `
+                # v2.1.26: one weak sign alone (e.g. only FromBase64String, only IEX, only WebClient) is ordinary admin/vendor code
+                # (installers, management agents, Microsoft modules) and is NOT an alert. An alert needs a real attack pattern:
+                #   attack tool / AMSI bypass / shellcode            -> Critical
+                #   download + execute, or in-memory .NET load        -> Critical
+                #   decode + execute (obfuscated run), EncodedCommand + download -> Warning
+                $hits = @([regex]::Matches($msgChk,$suspPs,'IgnoreCase') | ForEach-Object { $_.Value } | Select-Object -Unique)
+                $hit = $hits -join ', '
+                $hasS = $msgChk -match $psStrong
+                $hasD = $msgChk -match $psFetch; $hasE = $msgChk -match $psExec; $hasB = $msgChk -match $psDecode; $hasL = $msgChk -match 'Reflection\.Assembly\]::Load'
+                $psSev = $null; $why = ''
+                if ($hasS) { $psSev = 'Critical'; $why = 'ابزارِ حمله، دورزدنِ AMSI یا تزریقِ کد | attack tool, AMSI bypass or code injection' }
+                elseif ($hasD -and ($hasE -or $hasL)) { $psSev = 'Critical'; $why = 'دانلود و اجرای مستقیمِ کد از اینترنت/شبکه | downloads code and runs it directly' }
+                elseif ($hasL -and $hasB) { $psSev = 'Critical'; $why = 'بارگذاریِ برنامهٔ رمزگذاری‌شده در حافظه | loads an encoded program into memory' }
+                elseif ($hasB -and $hasE) { $psSev = 'Warning'; $why = 'کدِ رمزگذاری‌شده را باز و اجرا می‌کند (پنهان‌سازی) | decodes hidden code and runs it' }
+                elseif ($hasD -and $msgChk -match 'EncodedCommand') { $psSev = 'Warning'; $why = 'دستورِ رمزگذاری‌شده همراه با دانلود | encoded command together with a download' }
+                if (-not $psSev) { continue }
+                # the same script (same computer, path and signs) is reported once a day, not every time it runs / every part of it
+                $sbKey = '{0}|{1}|{2}' -f $e.MachineName, $(if ($path) { $path } else { ($msg.Substring(0, [Math]::Min(200, $msg.Length))) }), $hit
+                if (-not (Test-LBPsSeenOnce -Config $Config -Key $sbKey)) { continue }
+                $usr = ''; try { if ($e.UserId) { $usr = $e.UserId.Translate([Security.Principal.NTAccount]).Value } } catch { try { $usr = [string]$e.UserId } catch { } }
+                $snippet = (($msg -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 4) -join ' ').Trim()
+                if ($snippet.Length -gt 300) { $snippet = $snippet.Substring(0,300) + '…' }
+                $f += New-Finding -Category 'MemberServer' -Severity $psSev -Machine $e.MachineName -Time $e.TimeCreated `
+                    -Title ("اسکریپتِ PowerShell مشکوک | Suspicious PowerShell script") `
+                    -Details ("چرا مشکوک است | why: {0}`nسیستم | computer: {1}`nکاربر | user: {2}`nفایلِ اسکریپت | script file: {3}`nنشانه‌ها | signs: {4}`nبخشی از اسکریپت | excerpt: {5}" -f $why,$e.MachineName,$(if ($usr) { $usr } else { '-' }),$(if ($path) { $path } else { '(تعاملی/بدونِ فایل | interactive, no file)' }),$hit,$snippet) `
                     -Key ("MSRV|PS|{0}|{1}" -f $e.MachineName,$e.RecordId)
             }
         }
@@ -913,18 +1054,28 @@ function Invoke-DetectAppControl {
             $evts = Get-LogBokEvents -LogName $lg -Id @(8003,8004,8006,8007) -StartTime $Start -ComputerName $s.Computer -Config $Config
             $grp = @{}
             foreach ($e in @($evts)) {
-                $file = ''; try { $file = Split-Path -Leaf ([string]$e.Properties[0].Value) } catch {}
+                # v2.1.26: full path + who ran it; PowerShell's own policy-test files (__PSScriptPolicyTest_*.ps1/.psm1, written to
+                # %TEMP% every time PowerShell starts) are not programs anyone ran — skipped
+                $msg0 = ''; try { $msg0 = [string]$e.Message } catch { }
+                $full = ''; $mm = [regex]::Match($msg0, '^(.+?)\s+(was prevented from running|was allowed to run|was allowed to be used|was prevented from being used)', 'IgnoreCase')
+                if ($mm.Success) { $full = $mm.Groups[1].Value.Trim() }
+                if (-not $full) { try { foreach ($pv in $e.Properties) { $sv = [string]$pv.Value; if ($sv -match '^(%[A-Z]+%|[A-Za-z]:)?\\.+\.[A-Za-z0-9]{2,4}$') { $full = $sv; break } } } catch { } }
+                $file = ''; try { $file = Split-Path -Leaf $full } catch { }
                 if (-not $file) { $file = (Get-EvtMessage $e) }
+                if ($file -like '__PSScriptPolicyTest_*') { continue }
+                $usr = ''; try { if ($e.UserId) { $usr = $e.UserId.Translate([Security.Principal.NTAccount]).Value } } catch { try { $usr = [string]$e.UserId } catch { } }
                 $blocked = ($e.Id -in 8004,8007)
-                $k = '{0}|{1}|{2}' -f $e.MachineName, $file, $blocked
-                if (-not $grp.ContainsKey($k)) { $grp[$k] = @{ e=$e; n=0; file=$file; blocked=$blocked } }
+                $k = '{0}|{1}|{2}|{3}' -f $e.MachineName, $file, $blocked, $usr
+                if (-not $grp.ContainsKey($k)) { $grp[$k] = @{ e=$e; n=0; file=$file; full=$full; usr=$usr; blocked=$blocked } }
                 $grp[$k].n++; if ($e.TimeCreated -gt $grp[$k].e.TimeCreated) { $grp[$k].e = $e }
             }
             foreach ($g in $grp.Values) {
+                if (-not (Test-LBSeenOnce -Config $Config -Bucket 'appctl' -Key ('{0}|{1}|{2}|{3}' -f $g.e.MachineName, $g.full, $g.blocked, $g.usr) -Hours 12)) { continue }
                 $sev = if ($g.blocked) { 'Warning' } else { 'Info' }
-                $ti = if ($g.blocked) { ("اجرای برنامهٔ ممنوع مسدود شد: {0} | Blocked program execution: {0}" -f $g.file) } else { ("اجرای برنامهٔ مغایرِ سیاست (حسابرسی): {0} | Policy-violating program ran (audit): {0}" -f $g.file) }
+                $ti = if ($g.blocked) { ("اجرای «{0}» مسدود شد | '{0}' was blocked from running" -f $g.file) } else { ("«{0}» مغایرِ سیاست اجرا شد (حسابرسی) | '{0}' ran against policy (audit mode)" -f $g.file) }
                 $f += New-Finding -Category 'AppControl' -Severity $sev -Machine $g.e.MachineName -Time $g.e.TimeCreated `
-                    -Title $ti -Details ((Get-EvtMessage $g.e) + "`nتعداد در بازه | count: " + $g.n) -Key ("APPCTL|{0}|{1}|{2}" -f $g.e.MachineName, $g.file, $g.blocked)
+                    -Title $ti -Details ("برنامه | program: {0}`nکاربر | user: {1}`nسیستم | computer: {2}`nدفعات در این بازه | times: {3}" -f $(if ($g.full) { $g.full } else { $g.file }), $(if ($g.usr) { $g.usr } else { '-' }), $g.e.MachineName, $g.n) `
+                    -Key ("APPCTL|{0}|{1}|{2}" -f $g.e.MachineName, $g.file, $g.blocked)
             }
         }
     }
