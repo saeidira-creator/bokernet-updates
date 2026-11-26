@@ -113,9 +113,10 @@ function Get-LBDefaultAlertProfiles {
     foreach ($p in $d) {
         if (-not $p.ContainsKey('Keywords')) { $p.Keywords = @() }
         if (-not $p.ContainsKey('BusinessHours')) { $p.BusinessHours = 'any' }
-        $p.Hosts = @(); $p.Recipients = @(); $p.Enabled = $true; $p.Builtin = $true; $p.Rev = $(if ($p.Id -in 'd-files', 'd-down', 'd-malware', 'd-acl') { 6 } elseif ($p.Id -in 'd-endpoint', 'd-appcontrol') { 5 } else { 3 })
+        $p.Hosts = @(); $p.Recipients = @(); $p.Enabled = $true; $p.Builtin = $true; $p.Rev = $(if ($p.Id -in 'd-policy', 'd-server', 'd-afterhours', 'd-appcontrol') { 7 } elseif ($p.Id -in 'd-files', 'd-down', 'd-malware', 'd-acl') { 6 } elseif ($p.Id -in 'd-endpoint') { 5 } else { 3 })
         # فوری فقط برای موارد واقعاً حساس؛ بقیه خلاصهٔ ساعتی | instant only for truly urgent profiles, the rest hourly digest
-        if ($instant -contains $p.Id) { $p.Delivery = 'instant' } else { $p.Delivery = 'digest'; $p.DigestMinutes = $(if ($p.Id -in 'd-vuln', 'd-endpoint') { 1440 } else { 60 }) }
+        # v2.1.26: changes that are rarely urgent come as one readable mail a few times a day, not every hour
+        if ($instant -contains $p.Id) { $p.Delivery = 'instant' } else { $p.Delivery = 'digest'; $p.DigestMinutes = $(if ($p.Id -in 'd-vuln', 'd-endpoint', 'd-appcontrol') { 1440 } elseif ($p.Id -in 'd-policy', 'd-server', 'd-afterhours') { 240 } else { 60 }) }
     }
     return $d
 }
@@ -137,14 +138,14 @@ function Initialize-LBDefaultAlerts {
         $have = @{}; foreach ($p in $new) { $have[[string]$p.Id] = $true }
         foreach ($d in $defs.Values) { if (-not $have[[string]$d.Id] -and [int]$al.SeedRev -lt [int]$d.Rev) { $new += $d; $changed++ } }
         if ($changed) { [void](Set-LBSetting -Path 'Alerts.Profiles' -Value $new -StateDir $StateDir) }
-        if ([int]$al.SeedRev -lt 6) { [void](Set-LBSetting -Path 'Alerts.SeedRev' -Value 6 -StateDir $StateDir) }
+        if ([int]$al.SeedRev -lt 7) { [void](Set-LBSetting -Path 'Alerts.SeedRev' -Value 7 -StateDir $StateDir) }
         return $changed
     }
     $have = @{}; foreach ($p in $cur) { $have[[string]$p.Id] = $true }
     $add = @(Get-LBDefaultAlertProfiles | Where-Object { -not $have[[string]$_.Id] })
     if ($add.Count) { [void](Set-LBSetting -Path 'Alerts.Profiles' -Value @($cur + $add) -StateDir $StateDir) }
     [void](Set-LBSetting -Path 'Alerts.Seeded' -Value $true -StateDir $StateDir)
-    [void](Set-LBSetting -Path 'Alerts.SeedRev' -Value 6 -StateDir $StateDir)
+    [void](Set-LBSetting -Path 'Alerts.SeedRev' -Value 7 -StateDir $StateDir)
     return $add.Count
 }
 
@@ -287,18 +288,45 @@ function Send-LBRoutedAlerts {
 }
 
 # --- خلاصهٔ هشدار (digest) | alert digests -------------------------------------------------------
+#  v2.1.26: a digest now reads like a short report — what it means, the time span, one row per issue
+#  (host · what happened · the key details · how many times · last seen), most important first.
 function Get-LBDigestFile { param($Config) $sd = if ($Config.Paths.State -and (Test-Path $Config.Paths.State)) { $Config.Paths.State } else { Join-Path (Split-Path -Parent $PSCommandPath) 'state' }; Join-Path $sd 'alert-digest.ndjson' }
 function Add-LBDigestItems {
     param($Config, [object[]]$Routes, [switch]$Overflow)
     $f = Get-LBDigestFile -Config $Config
     $lines = foreach ($r in $Routes) {
         $fd = $r.Finding; $fid = ''; try { $fid = Get-LBFindingId $fd } catch { }
-        ConvertTo-Json -Compress -InputObject ([ordered]@{ p = $(if ($Overflow) { 'overflow' } else { [string]$r.ProfileId }); pn = $(if ($Overflow) { 'Overflow (hourly cap)' } else { [string]$r.ProfileName })
+        $det = [string]$fd.Details; if ($det.Length -gt 600) { $det = $det.Substring(0, 600) + '…' }
+        ConvertTo-Json -Compress -InputObject ([ordered]@{ p = $(if ($Overflow) { 'overflow' } else { [string]$r.ProfileId }); pn = $(if ($Overflow) { 'سقفِ ایمیلِ فوری | Overflow (hourly cap)' } else { [string]$r.ProfileName })
             m = [int]$(if ($Overflow) { 30 } else { $r.DigestMinutes }); to = @($r.Recipients); at = (Get-Date).ToString('o', $script:Inv)
-            t = $(if ($fd.Time -is [datetime]) { $fd.Time.ToString('o', $script:Inv) } else { [string]$fd.Time }); sev = [string]$fd.Severity; host = [string]$fd.Machine; cat = [string]$fd.Category; title = [string]$fd.Title; id = $fid })
+            t = $(if ($fd.Time -is [datetime]) { $fd.Time.ToString('o', $script:Inv) } else { [string]$fd.Time }); sev = [string]$fd.Severity; host = [string]$fd.Machine; cat = [string]$fd.Category; title = [string]$fd.Title; d = $det; id = $fid })
     }
     try { [IO.File]::AppendAllLines($f, [string[]]@($lines), (New-Object Text.UTF8Encoding($false))) } catch { }
 }
+
+# توضیحِ سادهٔ هر خلاصه: یعنی چه و چه باید کرد | plain explanation per digest profile
+function Get-LBDigestHelp {
+    param([string]$ProfileId, [bool]$En)
+    $h = @{
+        'd-policy'     = @('یک Group Policy (GPO) یا تنظیمات و قواعدِ فایروال تغییر کرده، یا روی سیستمی قاعدهٔ فایروالِ دستی (خارج از GPO) پیدا شده است. اگر این تغییر را خودتان یا همکارتان انجام داده‌اید کاری لازم نیست؛ وگرنه ببینید چه کسی و چه چیزی را عوض کرده.', 'A Group Policy (GPO) or a firewall setting/rule changed, or a manual firewall rule (outside GPO) was found on a computer. If you or a colleague made the change, nothing to do; otherwise check who changed what.')
+        'd-appcontrol' = @('AppLocker جلوی اجرای برنامه‌ای را گرفته است (یا در حالتِ حسابرسی ثبت کرده). یعنی کسی خواسته برنامه‌ای خارج از فهرستِ مجاز اجرا کند. اگر آن برنامه لازم است، در سیاستِ AppLocker مجازش کنید؛ اگر ناشناخته است، آن سیستم را بررسی کنید.', 'AppLocker blocked (or, in audit mode, logged) a program. Someone tried to run something outside the allowed list. If the program is needed, allow it in the AppLocker policy; if it is unknown, check that computer.')
+        'd-server'     = @('روی سرورها Task زمان‌بندی یا سرویسِ جدید ساخته/عوض شده، یا اسکریپتِ PowerShell با نشانهٔ حمله اجرا شده است. نصب و به‌روزرسانیِ نرم‌افزار هم این‌ها را می‌سازد؛ اگر نام برایتان ناآشناست بررسی کنید.', 'A scheduled task or service was created/changed on a server, or a PowerShell script with attack signs ran. Software installs and updates also do this; check any name you do not recognise.')
+        'd-afterhours' = @('این رویدادهای حساس بیرون از ساعتِ کاری رخ داده‌اند (ورود و حساب‌ها، تغییرِ سرور و GPO، دستکاریِ لاگ). کارهای زمان‌بندی‌شدهٔ شبانه طبیعی‌اند؛ کارِ دستیِ ناآشنا را بررسی کنید.', 'These sensitive events happened outside business hours (sign-ins and accounts, server and GPO changes, log tampering). Scheduled night jobs are normal; check any unfamiliar manual activity.')
+        'd-acl'        = @('مجوزهای (دسترسی‌های) فایل یا پوشه‌ای عوض شده است. اگر مدیر عمداً عوض کرده کاری لازم نیست.', 'File or folder permissions changed. Nothing to do if an administrator changed them on purpose.')
+        'd-files'      = @('فایل‌های حساسِ تحتِ نظر تغییر کرده‌اند یا فایلِ مشکوکی دیده شده است.', 'Watched sensitive files changed, or a suspicious file was seen.')
+        'd-logon'      = @('ورودهای ناموفق، قفل‌شدنِ حساب یا حدس‌زدنِ رمز. تعدادِ زیاد از یک IP یعنی حمله؛ یکی‌دوتا معمولاً اشتباهِ تایپ است.', 'Failed sign-ins, lockouts or password guessing. Many from one IP means an attack; one or two is usually a typo.')
+        'd-usermgmt'   = @('کاربر یا گروهی در اکتیودایرکتوری ساخته، حذف یا عوض شده یا رمزش ریست شده است.', 'A user or group was created, deleted or changed in Active Directory, or a password was reset.')
+        'd-apps'       = @('تلاش برای حمله یا ورودِ ناموفق به SQL، IIS یا FTP.', 'Attack attempts or failed sign-ins on SQL, IIS or FTP.')
+        'd-network'    = @('پیام‌های مهمِ تجهیزاتِ شبکه (syslog).', 'Important messages from network devices (syslog).')
+        'd-vuln'       = @('آسیب‌پذیری‌ها و موارد عدمِ انطباقِ سیستم‌ها (روزانه).', 'Vulnerabilities and compliance gaps on computers (daily).')
+        'd-endpoint'   = @('مشکلاتِ سلامت و امنیتِ سیستم‌های دارای ایجنت (آنتی‌ویروس، فایروال، به‌روزرسانی، دیسک…).', 'Health and security problems on agent computers (antivirus, firewall, updates, disk…).')
+        'd-custom'     = @('قواعدِ لاگِ سفارشی که خودتان تعریف کرده‌اید.', 'Custom log rules you defined.')
+        'overflow'     = @('در یک ساعت بیش از سقفِ ایمیلِ فوری هشدار آمد؛ بقیه این‌جا جمع شده‌اند تا صندوقتان پر نشود.', 'More instant alerts than the hourly cap arrived; the rest are collected here so your inbox is not flooded.')
+    }
+    $x = $h[$ProfileId]; if (-not $x) { return '' }
+    return $(if ($En) { $x[1] } else { $x[0] })
+}
+
 function Send-LBAlertDigests {
     param($Config, $State)
     $f = Get-LBDigestFile -Config $Config
@@ -306,34 +334,71 @@ function Send-LBAlertDigests {
     if ($State -and $State.ContainsKey('mail::pausedUntil')) { $pu = ConvertTo-LBDate ([string]$State['mail::pausedUntil']); if ($pu -and (Get-Date) -lt $pu) { return 0 } }
     $items = @([IO.File]::ReadAllLines($f, [Text.Encoding]::UTF8) | Where-Object { $_ } | ForEach-Object { try { $_ | ConvertFrom-Json } catch { } })
     if (-not $items.Count) { return 0 }
-    $now = Get-Date; $keep = @(); $sent = 0; $sentP = @()
+    # the same event can reach the queue twice (overlapping scan windows in older versions): count it once
+    $uniq = @{}; $items = @($items | Where-Object { $k = ([string]$_.p) + '|' + $(if ($_.id) { [string]$_.id } else { [string]$_.t + [string]$_.host + [string]$_.title }); if ($uniq.ContainsKey($k)) { $false } else { $uniq[$k] = 1; $true } })
+    $now = Get-Date; $sent = 0; $sentP = @()
+    $en = ($Config.Language -eq 'en')
+    function LbEnc([string]$s) { [System.Net.WebUtility]::HtmlEncode($s) }
+    function LbPick([string]$s) { $pp = $s -split '\s\|\s', 2; if ($pp.Count -eq 2) { if ($en) { $pp[1].Trim() } else { $pp[0].Trim() } } else { $s } }
+    function LbTm($v) { $d = ConvertTo-LBDate ([string]$v); if ($d) { if ($d.Date -eq (Get-Date).Date) { $d.ToString('HH:mm', $script:Inv) } else { $d.ToString('MM-dd HH:mm', $script:Inv) } } else { '' } }
+    $rank = @{ Critical = 3; Warning = 2; Info = 1 }
     foreach ($g in ($items | Group-Object p)) {
         $first = $null; foreach ($it in $g.Group) { $a = ConvertTo-LBDate ([string]$it.at); if ($a -and (-not $first -or $a -lt $first)) { $first = $a } }
         $mins = [int]($g.Group[0].m); if ($mins -lt 5) { $mins = 60 }
-        if ($first -and $now -lt $first.AddMinutes($mins)) { $keep += $g.Group; continue }
+        if ($first -and $now -lt $first.AddMinutes($mins)) { continue }
         $to = @($g.Group | ForEach-Object { @($_.to) } | Where-Object { $_ } | Select-Object -Unique)
-        if (-not $to.Count) { continue }
-        $en = ($Config.Language -eq 'en')
-        $rows = foreach ($t in ($g.Group | Group-Object { "{0}|{1}|{2}" -f $_.host, $_.cat, ([regex]::Replace([string]$_.title, '\d+', '#')) } | Sort-Object Count -Descending | Select-Object -First 200)) {
-            $x = $t.Group[0]; $ttl = [string]$x.title; $pp = $ttl -split '\s\|\s', 2; if ($pp.Count -eq 2) { $ttl = $(if ($en) { $pp[1] } else { $pp[0] }) }
-            $sevc = switch ([string]$x.sev) { 'Critical' { '#c0392b' } 'Warning' { '#b7791f' } default { '#2e6fa8' } }
-            "<tr><td style='padding:4px 8px;color:$sevc'>$([System.Net.WebUtility]::HtmlEncode([string]$x.sev))</td><td style='padding:4px 8px'>$([System.Net.WebUtility]::HtmlEncode([string]$x.host))</td><td style='padding:4px 8px'>$([System.Net.WebUtility]::HtmlEncode($ttl))</td><td style='padding:4px 8px;text-align:center'>$($t.Count)</td></tr>"
+        if (-not $to.Count) { $sentP += [string]$g.Name; continue }
+        $issues = @($g.Group | Group-Object { "{0}|{1}|{2}" -f $_.host, $_.cat, ([regex]::Replace([string]$_.title, '\d+', '#')) } |
+            Sort-Object @{ Expression = { $m = 0; foreach ($z in $_.Group) { $r0 = [int]$rank[[string]$z.sev]; if ($r0 -gt $m) { $m = $r0 } }; $m }; Descending = $true }, @{ Expression = { $_.Count }; Descending = $true })
+        $hosts = @($g.Group | ForEach-Object { [string]$_.host } | Where-Object { $_ } | Select-Object -Unique)
+        $tAll = @($g.Group | ForEach-Object { ConvertTo-LBDate ([string]$_.t) } | Where-Object { $_ } | Sort-Object)
+        $span = ''
+        if ($tAll.Count) { $fmt = $(if ($tAll[0].Date -eq (Get-Date).Date) { 'HH:mm' } else { 'MM-dd HH:mm' }); $a1 = $tAll[0].ToString($fmt, $script:Inv); $a2 = $tAll[-1].ToString($fmt, $script:Inv)
+            $span = if ($en) { "$a1 – $a2" } else { "از $a1 تا $a2" } }
+        $nCrit = @($g.Group | Where-Object { $_.sev -eq 'Critical' }).Count
+        $rows = foreach ($t in ($issues | Select-Object -First 40)) {
+            $x = $t.Group | Sort-Object { [string]$_.t } | Select-Object -Last 1
+            $sev = [string]$x.sev
+            $sevTxt = if ($en) { $sev } else { switch ($sev) { 'Critical' { 'بحرانی' } 'Warning' { 'هشدار' } default { 'اطلاع' } } }
+            $sevc = switch ($sev) { 'Critical' { '#c0392b' } 'Warning' { '#b7791f' } default { '#2e6fa8' } }
+            # each details line is "فارسی | English: value" or plain text: keep the reader's language, first lines only
+            $dl = @(([string]$x.d) -split '\r?\n' | Where-Object { $_.Trim() } | Select-Object -First 3 | ForEach-Object {
+                $ln = $_.Trim(); $m2 = [regex]::Match($ln, '^(.*?)\s\|\s([^:|]{1,40}):\s*(.*)$')
+                if ($m2.Success) { $(if ($en) { $m2.Groups[2].Value } else { $m2.Groups[1].Value }) + ': ' + ((($m2.Groups[3].Value -split '،\s*') | ForEach-Object { LbPick $_ }) -join '، ') } else { LbPick $ln } })
+            $det = $dl -join ' · '
+            if ($det.Length -gt 260) { $det = $det.Substring(0, 260) + '…' }
+            $cnt = if ($t.Count -gt 1) { "<b>$($t.Count)</b>" } else { '1' }
+            "<tr><td style='padding:6px 8px;border-bottom:1px solid #e6e9ef;white-space:nowrap'><span style='color:$sevc;font-weight:bold'>$(LbEnc $sevTxt)</span></td>" +
+            "<td style='padding:6px 8px;border-bottom:1px solid #e6e9ef;white-space:nowrap;direction:ltr'>$(LbEnc ([string]$x.host))</td>" +
+            "<td style='padding:6px 8px;border-bottom:1px solid #e6e9ef'><b>$(LbEnc (LbPick ([string]$x.title)))</b>$(if ($det) { "<div style='color:#5b6472;font-size:12px;margin-top:2px'>$(LbEnc $det)</div>" })</td>" +
+            "<td style='padding:6px 8px;border-bottom:1px solid #e6e9ef;text-align:center'>$cnt</td>" +
+            "<td style='padding:6px 8px;border-bottom:1px solid #e6e9ef;white-space:nowrap;direction:ltr'>$(LbEnc (LbTm $x.t))</td></tr>"
         }
-        $pn = [string]$g.Group[0].pn; $pp2 = $pn -split '\s\|\s', 2; if ($pp2.Count -eq 2) { $pn = $(if ($en) { $pp2[1] } else { $pp2[0] }) }
-        $subj = if ($en) { "LogBok digest: $pn — $($g.Count) events" } else { "خلاصهٔ لاگ‌بوک: $pn — $($g.Count) رویداد" }
-        $dir = if ($en) { 'ltr' } else { 'rtl' }
-        $body = "<div dir='$dir' style='font-family:Tahoma,Segoe UI,sans-serif;font-size:13px'><h3 style='margin:0 0 8px'>$([System.Net.WebUtility]::HtmlEncode($subj))</h3><table style='border-collapse:collapse' border='1' cellspacing='0'><tr style='background:#eee'><th>Severity</th><th>Host</th><th>Event</th><th>Count</th></tr>$($rows -join '')</table></div>"
+        $pn = LbPick ([string]$g.Group[0].pn)
+        $subj = if ($en) { "LogBok digest: $pn — $($issues.Count) issue(s), $($g.Count) event(s)" + $(if ($nCrit) { ", $nCrit critical" }) } else { "خلاصهٔ لاگ‌بوک: $pn — $($issues.Count) مورد، $($g.Count) رویداد" + $(if ($nCrit) { "، $nCrit بحرانی" }) }
+        $dir = if ($en) { 'ltr' } else { 'rtl' }; $al = if ($en) { 'left' } else { 'right' }
+        $help = Get-LBDigestHelp -ProfileId ([string]$g.Name) -En $en
+        $hdr = if ($en) { @('Severity', 'Computer', 'What happened', 'Times', 'Last') } else { @('شدت', 'سیستم', 'چه اتفاقی افتاد', 'دفعات', 'آخرین بار') }
+        $more = if ($issues.Count -gt 40) { $(if ($en) { "<p style='color:#5b6472'>… and $($issues.Count - 40) more issue(s) — see the LogBok console.</p>" } else { "<p style='color:#5b6472'>… و $($issues.Count - 40) موردِ دیگر — در کنسولِ لاگ‌بوک ببینید.</p>" }) } else { '' }
+        $link = ''
+        if ($Config.Web -and $Config.Web.Enabled -ne $false) { $port = if ($Config.Web.Port) { [int]$Config.Web.Port } else { 8686 }; $link = "<p style='font-size:12px'><a href='http://localhost:$port/#/events'>$(if ($en) { 'Open the events in the LogBok console' } else { 'دیدنِ رویدادها در کنسولِ لاگ‌بوک' })</a></p>" }
+        $sum = if ($en) { "$($issues.Count) issue(s) · $($g.Count) event(s) · $($hosts.Count) computer(s)" + $(if ($span) { " · $span" }) } else { "$($issues.Count) مورد · $($g.Count) رویداد · $($hosts.Count) سیستم" + $(if ($span) { " · $span" }) }
+        $body = "<div dir='$dir' style='font-family:Tahoma,Segoe UI,sans-serif;font-size:13px;color:#1d2433;text-align:$al'>" +
+            "<h3 style='margin:0 0 4px'>$(LbEnc $pn)</h3><div style='color:#5b6472;margin-bottom:10px'>$sum</div>" +
+            $(if ($help) { "<div style='background:#f4f7fb;border-$($al):4px solid #d9a441;padding:8px 10px;margin-bottom:12px'>$(LbEnc $help)</div>" }) +
+            "<table style='border-collapse:collapse;width:100%;max-width:980px' cellspacing='0'><tr style='background:#eef2f7'>" + (($hdr | ForEach-Object { "<th style='padding:6px 8px;text-align:$al'>$(LbEnc $_)</th>" }) -join '') + "</tr>$($rows -join '')</table>$more$link" +
+            "<p style='font-size:11px;color:#8a93a3'>$(if ($en) { 'Repeated events are counted in one row. To stop an item you do not need, open it in the console and choose Mute.' } else { 'رویدادهای تکراری در یک ردیف شمرده شده‌اند. برای قطعِ موردی که لازم ندارید، آن را در کنسول باز کنید و «بی‌صدا» را بزنید.' })</p></div>"
         $ok = $false; $err = ''
         try { $ok = [bool](Send-LogBokMail -Subject $subj -Body $body -Html -To $to -Config $Config) } catch { $err = $_.Exception.Message }
         if ($ok) { $sent++; $sentP += [string]$g.Name; if ($State) { $State['mail::count'] = [int]$State['mail::count'] + 1 } }
-        else { $keep += $g.Group; if ($State) { $State['mail::pausedUntil'] = (Get-Date).AddMinutes(10).ToString('o', $script:Inv) }; break }
-        try { $sd = Split-Path -Parent $f; [IO.File]::AppendAllLines((Join-Path $sd 'alerts-sent.ndjson'), [string[]]@((ConvertTo-Json -Compress -InputObject ([ordered]@{ t = (Get-Date).ToString('o', $script:Inv); profile = "digest: $($g.Group[0].pn)"; to = ($to -join ', '); host = ''; sev = ''; title = "$($g.Count) events"; id = ''; ok = $ok; err = $err }))), (New-Object Text.UTF8Encoding($false))) } catch { }
+        else { if ($State) { $State['mail::pausedUntil'] = (Get-Date).AddMinutes(10).ToString('o', $script:Inv) }; break }
+        try { $sd = Split-Path -Parent $f; [IO.File]::AppendAllLines((Join-Path $sd 'alerts-sent.ndjson'), [string[]]@((ConvertTo-Json -Compress -InputObject ([ordered]@{ t = (Get-Date).ToString('o', $script:Inv); profile = "digest: $($g.Group[0].pn)"; to = ($to -join ', '); host = ''; sev = ''; title = "$($issues.Count) issues / $($g.Count) events"; id = ''; ok = $ok; err = $err }))), (New-Object Text.UTF8Encoding($false))) } catch { }
     }
-    # فقط گروه‌های ارسال‌شده حذف می‌شوند؛ بقیه (موعد نرسیده/ناموفق/نرسیده به‌خاطرِ break) می‌مانند
+    # فقط گروه‌های ارسال‌شده حذف می‌شوند | only the sent groups leave the queue
     $remain = @($items | Where-Object { $sentP -notcontains [string]$_.p })
     if ($remain.Count -gt 5000) { $remain = @($remain | Select-Object -Last 5000) }
     [IO.File]::WriteAllLines($f, [string[]]@($remain | ForEach-Object { ConvertTo-Json -Compress -InputObject $_ }), (New-Object Text.UTF8Encoding($false)))
     return $sent
 }
 
-Export-ModuleMember -Function Get-LBAlertMutes, Test-LBAlertMuted, Add-LBAlertMute, Remove-LBAlertMute, Add-LBDigestItems, Send-LBAlertDigests, Get-LBAlertSettings, Test-LBBusinessHours, Test-LBAlertMatch, Get-LBAlertRoutes, Add-LBAlertHistory, Get-LBAlertHistory, Send-LBRoutedAlerts, Get-LBDefaultAlertProfiles, Initialize-LBDefaultAlerts, Test-LBMailConfigured
+Export-ModuleMember -Function Get-LBAlertMutes, Test-LBAlertMuted, Add-LBAlertMute, Remove-LBAlertMute, Add-LBDigestItems, Send-LBAlertDigests, Get-LBDigestHelp, Get-LBAlertSettings, Test-LBBusinessHours, Test-LBAlertMatch, Get-LBAlertRoutes, Add-LBAlertHistory, Get-LBAlertHistory, Send-LBRoutedAlerts, Get-LBDefaultAlertProfiles, Initialize-LBDefaultAlerts, Test-LBMailConfigured
